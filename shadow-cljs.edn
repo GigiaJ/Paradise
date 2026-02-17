@@ -1,0 +1,15 @@
+{:deps {:aliases [:dev]}
+ :builds
+ {:app {:target :esm
+        :output-dir "resources/public/js"
+        :modules {:main {:entries [client.core]
+                         :exports {init client.core/init}}} ;; Map 'init' to the function
+        
+        :js-options
+        {:js-provider :import
+         :esm-js-shim false} 
+        
+        :compiler-options
+        {:output-feature-set :es-next}
+        
+        :devtools {:after-load client.core/after-load}}}}

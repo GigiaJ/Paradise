@@ -1,0 +1,8 @@
+{:paths ["src" "resources"]
+ :deps {org.clojure/clojure {:mvn/version "1.11.1"}
+        org.clojure/clojurescript {:mvn/version "1.11.132"}
+        thheller/shadow-cljs {:mvn/version "2.26.2"}
+        reagent/reagent {:mvn/version "1.2.0"}
+        funcool/promesa {:mvn/version "11.0.678"}}}
+
+
