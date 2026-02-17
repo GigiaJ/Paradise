@@ -1,0 +1,26 @@
+### --- Clojure & Shadow-cljs ---
+.shadow-cljs/
+.cpcache/
+/target/
+/resources/public/js/
+*.class
+*.jar
+pom.xml
+pom.xml.asc
+
+node_modules/
+dist/
+.DS_Store
+.env
+.env.local
+.env.*.local
+
+.idea/
+.vscode/
+.lein-repl-history
+.repl-history
+.nrepl-port
+.shadow-cljs-port
+
+Thumbs.db
+.DS_Store
