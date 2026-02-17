@@ -14,6 +14,8 @@ dist/
 .env
 .env.local
 .env.*.local
+rust_modules/
+resources/
 
 .idea/
 .vscode/
