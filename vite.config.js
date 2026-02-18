@@ -19,7 +19,7 @@ export default defineConfig(({ mode }) => {
         },
 
         optimizeDeps: {
-            include: ['@element-hq/web-shared-components'],
+            include: ['@element-hq/web-shared-components', '@vector-im/compound-web'],
             esbuildOptions: {
                 target: 'esnext'
             }
