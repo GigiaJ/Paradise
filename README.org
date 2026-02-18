@@ -1,0 +1,54 @@
+#+TITLE: Clorusa: A Literate CLJS-WASM Matrix Client
+#+TEXINFO_FILENAME: matrix-cljs.info
+#+TEXINFO_DIR_CATEGORY: Network Applications
+#+TEXINFO_DIR_TITLE: Matrix-CLJS
+#+TEXINFO_DIR_DESC: A ClojureScript client for the Matrix protocol.
+#+OPTIONS: toc:2          ;; Show 2 levels of Table of Contents
+#+OPTIONS: num:nil        ;; Don't number the headings
+#+OPTIONS: html-postamble:nil
+
+Intended to be both a lightweight CLJS-based Matrix client that uses the matrix-rust-sdk with WASM bindings.
+Further on that, we opt to use the web-element-components which define the LOGIC for the behavior of components.
+This is necessary to avoid rewriting logic that has complex implementations. Instead we should use the views described
+and expand on them via the lovely polymorphic options provided via ClojureScript.
+As a final design choice, we opt for using .org files to generate the actual ClojureScript files. Org-mode provides
+a clean way to document the methods without making the 'source' code a mess as we will auto-tangle the files.
+This allows the process to be:
+Org file -> CLJS -> ShadowCLJS compiles -> Vite detects change -> Browser refresh
+So we still maintain a crisp developer experience while adding great depth to the documentation end.
+
+
+Goals for the client include creating a reusable base that can be built on top of and extended easily.
+Expanding on that we can then try to build out a full feature client. For the most part these will be React-based
+Reagent components in hiccup.
+
+Setup is currently extremely messy. I've included the prebuilt generated-compat JS files.
+
+You need not do this as the generated files are included, but if for some reason you wanted to they were generated
+like so:
+
+#+NAME: build-scripts
+#+begin_src sh :tangle build-all.sh :tangle-mode (identity #o755)
+npm i
+guix shell -FNC -m manifest.scm -- sh -c "sh irust.sh && sh build-wasm-bindings.sh && sh babel.sh"
+#+end_src
+
+
+Running involves two terminal windows or running both commands together at the moment. No release build for shadow-cljs quite yet.
+
+** Development Workflow
+To develop Clorusa, you need to run the ClojureScript compiler and the Vite 
+asset server simultaneously.
+
+*** 1. Start the CLJS Watcher
+This handles the compilation of the ~.cljs~ files and provides the REPL.
+#+begin_src sh :async t
+npx shadow-cljs watch app
+#+end_src
+
+*** 2. Start the Vite Server
+Vite handles the WASM integration and serves the frontend.
+#+begin_src sh :async t
+npx vite
+#+end_src
+
