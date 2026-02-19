@@ -55,26 +55,9 @@
 :passphrase (aget data "passphrase")
 :storeId (aget data "storeId")}))))
 sessions))
-#+end_src
 
-Updates a specific user's session while preserving others.
-
-(defn- load-sessions-sync-impl []
-(let [sessions (load-raw-sessions-js)
-      Session (get-session-class)]
-(when Session
-(doseq [user-id (js/Object.keys sessions)]
-(let [data (aget sessions user-id)]
-(aset sessions user-id
-#js {:session (.new Session (aget data "session"))
-:passphrase (aget data "passphrase")
-:storeId (aget data "storeId")}))))
-sessions))
-#+end_src
-
-Updates a specific user's session while preserving others.
-
-(.-userId session)
+(defn- save-session-impl! [session passphrase store-id]
+(let [user-id (.-userId session)
 sessions (load-raw-sessions-js)
 existing (aget sessions user-id)
 final-pass (or passphrase (when existing (aget existing "passphrase")))
@@ -85,22 +68,33 @@ final-id   (or store-id   (when existing (aget existing "storeId")))]
                               :passphrase final-pass
                               :storeId final-id})
   (save-raw-sessions-js! sessions))))
-#+end_src
 
-
-Removes the specific user's database and metadata.
-#+begin_src clojurescript :tangle ../../src/client/session_store.cljs
-(defn- clear
-
-a "storeId"))]
+(defn- clear-session-impl! [user-id]
+(let [sessions (load-raw-sessions-js)
+data (aget sessions user-id)]
+(p/do
+(when-let [sid (and data (aget data "storeId"))]
 (delete-store-impl! sid))
   (js-delete sessions user-id)
   (save-raw-sessions-js! sessions))))
-#+end_src
 
+(deftype SessionStore []
+Object
+(loadSessions [this]
+(load-sessions-sync-impl))
 
-*** The SessionStore Class
+(save [this session passphrase store-id]
+(save-session-impl! session passphrase store-id))
 
-Finally, we wrap everything in a deftype. This compiles to a JavaScript class,
-making it compatible with the patterns expected by the Matrix SDK and UI layers.
-We use Object to implement the methods directly on the prototype
+(generatePassphrase [this]
+(generate-passphrase))
+
+(generateStoreId [this]
+    (generate-uuid))
+
+(getStoreName [this store-id]
+(str "closura-store-" store-id))
+
+(clear [this user-id]
+;; Return a promise to the caller so they can await the cleanup
+(clear-session-impl! user-id)))
