@@ -1,0 +1,108 @@
+
+**** Idiomatic Logging
+
+Digging into logging solutions to have a cohesive implementation across the client, and I
+feel timbre is likely the best choice. It is pure CLJ and so it doesn't need
+CLJS or JS libraries innately, but does use portable code so that JS outputting
+routed for the user automatically.
+
+Can even send logs out like this.
+#+begin_src clojurescript
+(timbre/merge-config!
+ {:appenders
+  {:remote
+   {:enabled? true
+    :fn (fn [data]
+          (js/fetch "/log"
+                    #js {:method "POST"
+                         :body (pr-str data)}))}}})
+#+end_src
+
+and with appenders we can even make the logs output JSON easily.
+
+
+Fitting an idiomatic logging solution that doesn't require handling the JS interop
+by hand means we can just pass everything to our logger and expect it to handle it like so
+#+begin_src clojurescript
+(ns my.app
+  (:require [taoensso.timbre :as log]))
+
+(log/info "Starting app" {:port 8080})
+(log/error e "Something failed")
+#+end_src
+
+
+So now we can move on to set up the logger for our project usage
+#+begin_src clojurescript :tangle ../../src/utils/logger.cljs
+(ns utils.logger
+  (:require [taoensso.timbre :as timbre]
+             [taoensso.timbre.appenders.core :as appenders]))
+#+end_src
+
+We should likely set up an appender that makes our logs clean and easily queried.
+#+begin_src clojurescript :tangle ../../src/utils/logger.cljs
+(def json-appender
+  {:enabled? true
+   :async? false
+   :min-level :info
+   :fn (fn [{:keys [level ?err msg_ timestamp_ ?ns-str ?file ?line]}]
+         (let [entry {:level     (name level)
+                      :timestamp (force timestamp_)
+                      :ns        ?ns-str
+                      :file      ?file
+                      :line      ?line
+                      :message   (force msg_)
+                      :error     (when ?err (str ?err))}]
+           (js/console.log (js/JSON.stringify (clj->js entry)))))})
+#+end_src
+
+
+Then we should point to our appender so that all of our logs go through it.
+By tying in js/goog.DEBUG we can make it so that timbre is disabled for release
+versions, but enabled in dev mode.
+This setting is from the shadow-cljs optimizations, so in advanced builds it is
+effectively 'release' and anything else is 'dev'
+#+begin_src clojurescript :tangle ../../src/utils/logger.cljs
+(defn init! []
+  (timbre/merge-config!
+   {:level :info
+    :appenders
+    {:console (appenders/console-appender)
+     :json    json-appender}})
+  (when ^boolean js/goog.DEBUG
+    (timbre/merge-config!
+     {:appenders {:json {:enabled? false}}})))
+#+end_src
+
+Now we need to re-expose these back out for the rest of our project to utilize
+#+begin_src clojurescript :tangle ../../src/utils/logger.cljs
+(defn log   [level & args] (timbre/log! level :p args))
+(defn trace [& args] (timbre/log! :trace :p args))
+(defn debug [& args] (timbre/log! :debug :p args))
+(defn info  [& args] (timbre/log! :info  :p args))
+(defn warn  [& args] (timbre/log! :warn  :p args))
+(defn error [& args] (timbre/log! :error :p args))
+(defn fatal [& args] (timbre/log! :fatal :p args))
+#+end_src
+
+
+
+Now we can easily just import this CLJS file like so
+#+begin_src clojurescript
+(ns clorusa.namespace
+  (:require
+    [utils.logger :as log]
+   )
+)
+#+end_src
+
+Now you can very easily pass JS or CLJS objects through it to output them like so
+#+begin_src clojurescript
+(log/info "Informative clients")
+(log/debug "Debugging clients")
+(log/warn "Warning clients")
+(log/error "Error clients")
+(log/fatal "It's going down.")
+#+end_src
+
+And that really is all there is to it. Now we have a nice idiomatic logging solution!
