@@ -17,8 +17,9 @@
         "@matrix-org/matrix-sdk-crypto-wasm": "^17.1.0",
         "@vector-im/compound-web": "^8.3.6",
         "generated-compat": "file:./packages/generated-compat",
-        "react": "^18.3.1",
-        "react-dom": "^18.3.1",
+        "nbb": "^1.4.206",
+        "react": "^19",
+        "react-dom": "^19",
         "shadow-cljs": "^3.3.6",
         "typescript": "^5.9.3",
         "uniffi-bindgen-react-native": "git+https://github.com/jhugman/uniffi-bindgen-react-native#5c01f3f7025d069aac1dd1fd51ca72bb76fdb243"
