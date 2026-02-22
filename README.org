@@ -34,7 +34,7 @@ for VS Code or as a Clojure program embedded in the project. We don't want to li
 would help improve on Paradise.
 
 
-The name stems from Bobby Hall's novel Ultra-85 and the music album of the same name.
+The name stems from Sir Robert Hall II's novel Ultra-85 and the music album of the same name.
 The novel itself isn't life-changing, but it conveys ideas similar to the situation we find ourselves in.
 We are trapped in an artificial space station that is non-free, corporate-owned platforms whose name could be seen
 as analogous to Babel. So we must make our way to Paradise. Many individuals have set out on creating
