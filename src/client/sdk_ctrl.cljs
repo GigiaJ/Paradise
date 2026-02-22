@@ -1,9 +1,10 @@
 (ns client.sdk-ctrl
   (:require [client.state :refer [sdk-world]]
+            [utils.logger :as log]
             [promesa.core :as p]
+            [utils.logger :as log]
             ["generated-compat" :as sdk])
-
-  (:require-macros [macros :refer [ocall oget]]))
+  (:require-macros [utils.macros :refer [ocall oget]]))
 
 (declare room-update-handler)
 
@@ -16,7 +17,7 @@
 (defn setup-entries! [rls]
   (when-not @has-setup-entries?
     (reset! has-setup-entries? true)
-    (js/console.log "State is LOADED. Initializing Entries...")
+    (log/info "State is LOADED. Initializing Entries...")
     (let [FK (.. sdk -RoomListEntriesDynamicFilterKind)]
       (p/let [res (ocall rls :entriesWithDynamicAdapters 200 #js {:onUpdate room-update-handler})
               ctrl (ocall res :controller)]
@@ -28,9 +29,11 @@
           (ocall ctrl :setFilter filter))
         (ocall ctrl :addOnePage)))))
 
+
+
 (defn loading-state-handler [s rls]
   (let [tag (.-tag ^js s)]
-    (js/console.log "State Monitor:" tag)
+    (log/debug "State Monitor:" tag)
     (case tag
       "NotLoaded" (swap! sdk-world assoc :loading? true)
       "Loaded"    (do (swap! sdk-world assoc :loading? false)
