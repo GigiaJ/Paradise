@@ -1,6 +1,6 @@
 (ns client.room-list
   (:require [client.state :refer [sdk-world]]
-            ["../index.web.js" :as sdk]
+            ["generated-compat" :as sdk]
             [promesa.core :as p]))
 
 (defn init-room-list-ui! []
