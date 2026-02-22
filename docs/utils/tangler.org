@@ -83,13 +83,11 @@ tangled blocks out.
 
 
 #+begin_src clojurescript :tangle ../../src/utils/tangler.cljs
-(ns tangle
+(ns utils.tangler
   (:require ["fs" :as fs]
             ["path" :as path]
             [clojure.string :as str]))
-
 #+end_src
-
 
 This iterates over the org mode files in the path supplied.
 It looks at the src block for the designation "clojurescript" and if it has "tangle"
@@ -150,5 +148,8 @@ neatly fit in the ClojureScript web development process.
 #+end_src
 
 
+
 Then, of course, we have plans to write a quick VS Code extension to open
 up development options to a much larger audience.
+
+

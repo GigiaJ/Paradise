@@ -1,8 +1,7 @@
-(ns tangle
+(ns utils.tangler
   (:require ["fs" :as fs]
             ["path" :as path]
             [clojure.string :as str]))
-
 
 (defn tangle-file [f-path]
   (let [content (fs/readFileSync f-path "utf8")
