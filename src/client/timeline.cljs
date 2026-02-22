@@ -1,7 +1,9 @@
 (ns client.timeline
     (:require [reagent.core :as r]
               [promesa.core :as p]
+              [utils.logger :as log]
               ["generated-compat" :as sdk]))
+
 
 (defonce timeline-atoms (r/atom []))
 
@@ -12,18 +14,18 @@
       (let [tag (.-tag diff)
             inner (.-inner diff)]
         (condp = tag
-          (.-Reset Tags) 
-          (reset! timeline-atoms 
-                  (mapv #(hash-map :id (.-uniqueIdentifier %) 
+          (.-Reset Tags)
+          (reset! timeline-atoms
+                  (mapv #(hash-map :id (.-uniqueIdentifier %)
                                    :sender (.. % -sender -userId)
-                                   :body (or (.. % -content -asEvent -body) "Event")) 
+                                   :body (or (.. % -content -asEvent -body) "Event"))
                         (array-seq (.-values inner))))
           (.-PushBack Tags)
-          (swap! timeline-atoms conj 
+          (swap! timeline-atoms conj
                  {:id (.. inner -value -uniqueIdentifier)
                   :sender (.. inner -value -sender -userId)
                   :body (or (.. inner -value -content -asEvent -body) "Event")})
-          (js/console.log "Other tag received:" tag))))))
+          (log/debug "Other tag received:" tag))))))
 
 (defn init-timeline! [room]
   (when room
