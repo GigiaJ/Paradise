@@ -6,6 +6,7 @@
         "url": "https://github.com/GigiaJ/Paradise"
     },
     "scripts": {
+        "dev": "concurrently \"npx shadow-cljs watch app\" \"npx nbb src/utils/tangler.cljs\" \"npx vite\"",
         "ubrn:web:build:release": "PATH=$HOME/.cargo/bin:/bin:$PATH && ubrn build web --config ubrn.config.yaml --release",
         "ubrn:web:build": "PATH=$HOME/.cargo/bin:/bin:$PATH && ubrn build web --config ubrn.config.yaml",
         "ubrn:checkout": "PATH=$HOME/.cargo/bin:/bin:$PATH && ubrn checkout --config ubrn.config.yaml",
@@ -32,6 +33,7 @@
         "@babel/plugin-transform-computed-properties": "^7.28.6",
         "@babel/preset-env": "^7.29.0",
         "babel-plugin-transform-rename-import": "^2.3.0",
+        "concurrently": "^9.2.1",
         "vite": "^7.3.1",
         "vite-plugin-top-level-await": "^1.6.0",
         "vite-plugin-wasm": "^3.5.0"
