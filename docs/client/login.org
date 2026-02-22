@@ -3,7 +3,7 @@
 #+begin_src clojurescript :tangle ../../src/client/login.cljs
 (ns client.login
   (:require
-   [utils.logger :as log]
+   [taoensso.timbre :as log]
    [client.view-models :refer [create-room-list-vm]]
    [reagent.core :as r]
    [promesa.core :as p]

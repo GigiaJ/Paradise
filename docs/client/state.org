@@ -3,7 +3,7 @@
     (:require [reagent.core :as r]
               [clojure.string :as str]
               [cljs.spec.alpha :as s]
-              [utils.logger :as log]
+              [taoensso.timbre :as log]
               ["@element-hq/web-shared-components" :as element-ui])
     (:require-macros [utils.macros :refer [ocall oget]]))
 #+end_src

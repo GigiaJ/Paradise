@@ -1,6 +1,7 @@
 (ns client.core
   (:require
-   [utils.logger :as log]
+   [taoensso.timbre :as log]
+   [utils.logger :as logger]
    [reagent.core :as r]
             [reagent.dom.client :as rdom]
             ["@element-hq/web-shared-components" :as element-ui :refer [RoomListView RoomListViewModel I18nContext I18nApi registerTranslations]]
@@ -21,7 +22,7 @@
           _ (state/set-client! raw-client)
           wrapped-client (:client state/sdk-world)
           _ (login/start-sync! raw-client)
-;;         _  (setup-room-list! wrapped-client)
+          ;;         _  (setup-room-list! wrapped-client)
           ]))
 
 (defn setup-room-list! [client]
@@ -62,6 +63,7 @@
 
 (defn init-i18n! []
   (try
+    (log/info "Triggered")
     (let [api (create-i18n-api)]
       (reset! i18n-state {:loading? false :api api}))
     (catch :default e
@@ -76,14 +78,14 @@
 ;;    [:div.h-screen.flex.bg-gray-900.text-white
     (cond
        loading? [:div "Loading Translations..."]
-;;       (not api) [:div "Error: Translations failed to load."]
+       (not api) [:div "Error: Translations failed to load."]
        :else
-;;       [:> I18nContext.Provider {:value api}
+       [:> I18nContext.Provider {:value api}
         [:div.cpd-theme-dark.cpd-dark.mx_MatrixChat.h-screen
     [:> TooltipProvider
      [:div.flex.items-center.justify-center.w-full.h-full
         [:span.text-xl.animate-pulse "Connecting to Matrix..."]]
-       client
+       ;;client
        [:<>
         (let [room-list-vm (get-in vms [:room-list])]
           (when room-list-vm
@@ -92,9 +94,11 @@
           [ui/room-view active-room-id timeline-data]
           [:div.flex-1.flex.items-center.justify-center.text-gray-500
            "Select a room to start chatting"])]
-       :else
-       [ui/login-screen handle-login-request]]]
-   ;;     ]
+       ;;:else
+       ;;[ui/login-screen handle-login-request]
+     ]
+         ]
+             ]
     )))
 
 (defonce root (atom nil))
@@ -106,7 +110,7 @@
 
 (defn ^:export init []
   (init-i18n!)
-  (log/init!)
+  (logger/init!)
   (log/debug  "Entering Paradise!")
   (login/bootstrap! on-client-ready)
   (render!))

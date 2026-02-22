@@ -1,7 +1,7 @@
 (ns client.ui
   (:require [reagent.core :as r]
             [client.timeline :as timeline]
-            [utils.logger :as log]
+            [taoensso.timbre :as log]
             [clojure.string :as str]
             [client.state :as state :refer [sdk-world]]
             ["@element-hq/web-shared-components" :refer [RoomListView]])

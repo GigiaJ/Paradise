@@ -1,8 +1,7 @@
 (ns client.sdk-ctrl
   (:require [client.state :refer [sdk-world]]
-            [utils.logger :as log]
             [promesa.core :as p]
-            [utils.logger :as log]
+            [taoensso.timbre :as log]
             ["generated-compat" :as sdk])
   (:require-macros [utils.macros :refer [ocall oget]]))
 

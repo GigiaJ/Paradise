@@ -26,10 +26,9 @@
     (timbre/merge-config!
      {:appenders {:json {:enabled? false}}})))
 
-(defn log   [level & args] (timbre/log! level :p args))
-(defn trace [& args] (timbre/log! :trace :p args))
-(defn debug [& args] (timbre/log! :debug :p args))
-(defn info  [& args] (timbre/log! :info  :p args))
-(defn warn  [& args] (timbre/log! :warn  :p args))
-(defn error [& args] (timbre/log! :error :p args))
-(defn fatal [& args] (timbre/log! :fatal :p args))
+(def trace  timbre/trace)
+(def debug  timbre/debug)
+(def info   timbre/info)
+(def warn   timbre/warn)
+(def error  timbre/error)
+(def fatal  timbre/fatal)

@@ -1,7 +1,7 @@
 (ns client.timeline
     (:require [reagent.core :as r]
               [promesa.core :as p]
-              [utils.logger :as log]
+              [taoensso.timbre :as log]
               ["generated-compat" :as sdk]))
 
 

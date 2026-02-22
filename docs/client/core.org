@@ -11,7 +11,8 @@ build hooks in order to enable easy
 #+begin_src clojurescript :tangle ../../src/client/core.cljs
 (ns client.core
   (:require
-   [utils.logger :as log]
+   [taoensso.timbre :as log]
+   [utils.logger :as logger]
    [reagent.core :as r]
             [reagent.dom.client :as rdom]
             ["@element-hq/web-shared-components" :as element-ui :refer [RoomListView RoomListViewModel I18nContext I18nApi registerTranslations]]
@@ -37,9 +38,10 @@ operations here up until the point in which the client is 'started'.
           _ (state/set-client! raw-client)
           wrapped-client (:client state/sdk-world)
           _ (login/start-sync! raw-client)
-;;         _  (setup-room-list! wrapped-client)
+          ;;         _  (setup-room-list! wrapped-client)
           ]))
 #+end_src
+
 
 
 
@@ -88,11 +90,13 @@ from the start anyway.
 
 (defn init-i18n! []
   (try
+    (log/info "Triggered")
     (let [api (create-i18n-api)]
       (reset! i18n-state {:loading? false :api api}))
     (catch :default e
       (js/console.error "Manual I18n init failed" e))))
 #+end_src
+
 
 For now this merely provides an outline to work within.
 #+begin_src clojurescript :tangle ../../src/client/core.cljs
@@ -105,14 +109,14 @@ For now this merely provides an outline to work within.
 ;;    [:div.h-screen.flex.bg-gray-900.text-white
     (cond
        loading? [:div "Loading Translations..."]
-;;       (not api) [:div "Error: Translations failed to load."]
+       (not api) [:div "Error: Translations failed to load."]
        :else
-;;       [:> I18nContext.Provider {:value api}
+       [:> I18nContext.Provider {:value api}
         [:div.cpd-theme-dark.cpd-dark.mx_MatrixChat.h-screen
     [:> TooltipProvider
      [:div.flex.items-center.justify-center.w-full.h-full
         [:span.text-xl.animate-pulse "Connecting to Matrix..."]]
-       client
+       ;;client
        [:<>
         (let [room-list-vm (get-in vms [:room-list])]
           (when room-list-vm
@@ -121,9 +125,11 @@ For now this merely provides an outline to work within.
           [ui/room-view active-room-id timeline-data]
           [:div.flex-1.flex.items-center.justify-center.text-gray-500
            "Select a room to start chatting"])]
-       :else
-       [ui/login-screen handle-login-request]]]
-   ;;     ]
+       ;;:else
+       ;;[ui/login-screen handle-login-request]
+     ]
+         ]
+             ]
     )))
 #+end_src
 
@@ -145,7 +151,7 @@ Provides the entry-point for the application that Vite and the index.html enter 
 #+begin_src clojurescript  :tangle ../../src/client/core.cljs
 (defn ^:export init []
   (init-i18n!)
-  (log/init!)
+  (logger/init!)
   (log/debug  "Entering Paradise!")
   (login/bootstrap! on-client-ready)
   (render!))
@@ -169,3 +175,5 @@ This will ensure the components dismount properly on refresh.
                          :active-room-id nil})
   (log/debug "State reset and memory cleared."))
 #+end_src
+
+

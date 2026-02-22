@@ -1,7 +1,7 @@
 (ns client.view-models
   (:require ["@element-hq/web-shared-components" :refer [BaseViewModel]]
             [goog.object :as g]
-            [utils.logger :as log]
+            [taoensso.timbre :as log]
             [client.state :refer [sdk-world]]
            ))
 
@@ -38,7 +38,7 @@
                        (.dispose raw-vm))})
     (log/debug (str "Mounted VM: " (name id)))))
 
-(defn unmount-vm! 
+(defn unmount-vm!
   "Safely unplugs a ViewModel and clears its memory."
   [id]
   (when-let [vm-map (get-in @sdk-world [:vms id])]
