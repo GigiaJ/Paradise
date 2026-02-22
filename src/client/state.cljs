@@ -4,7 +4,7 @@
               [cljs.spec.alpha :as s]
               [utils.logger :as log]
               ["@element-hq/web-shared-components" :as element-ui])
-    (:require-macros [macros :refer [ocall oget]]))
+    (:require-macros [utils.macros :refer [ocall oget]]))
 
 (defprotocol IMatrixClient
   "Structured access to the Matrix Rust SDK Client"
