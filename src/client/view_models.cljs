@@ -46,7 +46,3 @@
     (swap! sdk-world update :vms dissoc id)
     (swap! sdk-world update :snapshots dissoc id)
     (log/debug (str "Unmounted VM: " (name id)))))
-
-;; Testing shadow-cljs tangling. Failed.
-;; Now?
-;; test
