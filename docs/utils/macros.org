@@ -1,0 +1,44 @@
+So we need some helper macros to cover a number of circumstances whether that be
+just shortening or cleaning up usage to patching Vite and other incompatibilities.
+
+
+#+begin_src clojurescript :tangle ../../src/utils/macros.cljs
+(ns utils.macros
+  (:require [clojure.java.io :as io]))
+#+end_src
+
+
+These macros are effectively just wrappers that provide clean
+interop with the underlying Rust objects as the Rust objects
+tend to utilize prototypes heavily as a result of how UniFFI
+outputs them.
+#+begin_src clojurescript :tangle ../../src/utils/macros.cljc
+(defmacro ocall
+  [obj method & args]
+  `(let [obj# ~obj
+         m# ~(name method)
+         f# (js/goog.object.get obj# m#)]
+     (if (fn? f#)
+       (.apply f# obj# (cljs.core/array ~@args))
+       (throw (js/Error. (str "Method " m# " is not a function (is it a property?)"))))))
+
+
+(defmacro oget
+  "Property access for WASM objects that hides behind prototypes."
+  [obj prop]
+  `(js/goog.object.get ~obj ~(name prop)))
+#+end_src
+
+This allows us to aggregate the language JSONs from the node_modules
+in order to serve them properly to users. It's just a fancy way
+to write a dynamic import of JSONs for ClojureScript.
+#+begin_src clojurescript :tangle ../../src/utils/macros.cljc
+(defmacro gen-translation-map [dir-path]
+  (let [files (filter #(.endsWith (.getName %) ".json") 
+                      (file-seq (io/file dir-path)))
+        mapping (into {} (for [f files]
+                           (let [lang (second (re-find #"([^/]+)\.json$" (.getPath f)))]
+                             [lang `(fn [] (js/import ~(.getPath f)))])))]
+    mapping))
+#+end_src
+
