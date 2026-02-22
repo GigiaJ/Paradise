@@ -1,15 +1,17 @@
 {:deps {:aliases [:dev]}
  :builds
  {:app {:target :esm
+        :npm-deps false
+        :build-hooks [[build-hooks/generate-lang-map]
+                      [build-hooks/tangle-hook]]
         :output-dir "resources/public/js"
         :modules {:main {:entries [client.core]
-                         :exports {init client.core/init}}} ;; Map 'init' to the function
-        
+                         :exports {init client.core/init}}}
         :js-options
         {:js-provider :import
-         :esm-js-shim false} 
-        
+         :esm-js-shim false
+         :loader {".css" :css}}
         :compiler-options
         {:output-feature-set :es-next}
-        
-        :devtools {:after-load client.core/after-load}}}}
+        :devtools {:after-load client.core/after-load
+                   :watch-dir "docs"}}}}
