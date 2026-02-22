@@ -86,10 +86,10 @@ Now we need to re-expose these back out for the rest of our project to utilize
 #+end_src
 
 
-
+ / 
 Now we can easily just import this CLJS file like so
 #+begin_src clojurescript
-(ns clorusa.namespace
+(ns paradise.namespace
   (:require
     [utils.logger :as log]
    )
