@@ -7,6 +7,8 @@
 #+OPTIONS: num:nil        ;; Don't number the headings
 #+OPTIONS: html-postamble:nil
 
+
+**** What is Paradise?
 Intended to be both a lightweight CLJS-based Matrix client that uses the matrix-rust-sdk with WASM bindings.
 
 Further on that, we opt to use the web-element-components which define the LOGIC for the behavior of components.
@@ -34,6 +36,14 @@ for VS Code or as a Clojure program embedded in the project. We don't want to li
 would help improve on Paradise.
 
 
+
+***** Why Paradise?
+Often, as time has passed, the internet has become less free and more walled. It is an unfortunate situation
+to see more and more information hidden behind the pay walls of corporations. That our data and privacy
+might be owned by others. If we can help capture even a sliver of that experience people associate with the
+premium of closed-source solutions, then maybe in our own way we might aid in reversing the degradation
+of the online experience.
+
 The name stems from Sir Robert Hall II's novel Ultra-85 and the music album of the same name.
 The novel itself isn't life-changing, but it conveys ideas similar to the situation we find ourselves in.
 We are trapped in an artificial space station that is non-free, corporate-owned platforms whose name could be seen
@@ -41,7 +51,7 @@ as analogous to Babel. So we must make our way to Paradise. Many individuals hav
 or finding Paradise, but the goal for this project is to provide people perhaps a small slice of paradise.
 
 
-
+***** Set-up
 Setup is currently extremely messy. I've included the prebuilt generated-compat JS files.
 
 You need not do this as the generated files are included, but if for some reason you wanted to they were generated
