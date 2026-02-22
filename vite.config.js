@@ -19,7 +19,7 @@ export default defineConfig(({ mode }) => {
         },
 
         optimizeDeps: {
-            include: ['@element-hq/web-shared-components', '@vector-im/compound-web'],
+            include: ['@element-hq/web-shared-components', '@vector-im/compound-web', 'react', 'react-dom'],
             esbuildOptions: {
                 target: 'esnext'
             }
@@ -27,7 +27,11 @@ export default defineConfig(({ mode }) => {
 
         resolve: {
             alias: {
-                "generated-compat": path.resolve(__dirname, './packages/generated-compat/src/index.web.js')
+                "generated-compat": path.resolve(__dirname, './packages/generated-compat/src/index.web.js'),
+                'react': path.resolve(__dirname, './node_modules/react'),
+                'react-dom': path.resolve(__dirname, './node_modules/react-dom'),
+                'react/jsx-runtime': path.resolve(__dirname, './node_modules/react/jsx-runtime'),
+                'react/jsx-dev-runtime': path.resolve(__dirname, './node_modules/react/jsx-dev-runtime')
             }
         },
 
