@@ -1,13 +1,17 @@
 (ns client.ui
   (:require [reagent.core :as r]
-            [client.timeline :as timeline])
-  (:require-macros [macros :refer [ocall oget]]))
+            [client.timeline :as timeline]
+            [utils.logger :as log]
+            [clojure.string :as str]
+            [client.state :as state :refer [sdk-world]]
+            ["@element-hq/web-shared-components" :refer [RoomListView]])
+  (:require-macros [utils.macros :refer [ocall oget]]))
 
 (defn login-screen [on-login-trigger]
   (let [fields (r/atom {:hs (or js/process.env.MATRIX_HOMESERVER "") :user "" :pass ""})]
     (fn [on-login-trigger]
       [:div.login-container.flex.flex-col.items-center.justify-center.h-screen.bg-gray-900
-       [:h2.text-white.mb-4 "Clorusa Login"]
+       [:h2.text-white.mb-4 "Paradise Login"]
        [:input.mb-2.p-2.rounded.bg-gray-700.text-white
         {:type "text" :placeholder "Homeserver" :value (:hs @fields)
          :on-change #(swap! fields assoc :hs (.. % -target -value))}]
@@ -23,18 +27,39 @@
                      (on-login-trigger (:hs @fields) (:user @fields) (:pass @fields)))}
         "Login"]])))
 
-(defn room-list-view [rooms selected-room-atom on-room-click]
-  [:div.w-64.bg-gray-800.border-r.border-gray-700.overflow-y-auto
-   [:h2.p-4.font-bold.border-b.border-gray-700 "Rooms"]
-   (doall
-    (for [room rooms]
-      (let [rid (.-roomId ^js room)
-            rname (.-name ^js room)]
-        [:div.p-3.cursor-pointer.hover:bg-gray-700
-         {:key rid
-          :class (when (= @selected-room-atom room) "bg-gray-700")
-          :on-click #(on-room-click room)}
-         (or rname rid "Unnamed Room")])))])
+(defn string->color [s]
+  (let [hash (reduce (fn [h c] (+ (int c) (bit-shift-left h 5) (- h))) 0 s)
+        hue  (mod (Math/abs hash) 360)]
+    (str "hsl(" hue ", 60%, 40%)")))
+
+
+(defn base-avatar-stub
+  [{:keys [idName name url size] :or {size "24px"}}]
+  (let [initial (if (not-empty name) (str/upper-case (subs name 0 1)) "?")
+        bg-color (string->color (or idName name "default"))]
+    [:div {:className "avatar-frame"
+           :style {:width size :height size :min-width size
+                   :border-radius "50%" :background-color bg-color
+                   :color "white" :display "flex"
+                   :align-items "center" :justify-content "center"
+                   :font-size "12px" :overflow "hidden"
+                   :pointer-events "none"}}
+     (if url
+       [:img {:src url :style {:width "100%" :height "100%" :object-fit "cover"}}]
+       initial)]))
+
+(defn render-avatar [room-info]
+  (r/as-element
+   [base-avatar-stub {:idName (.-id room-info)
+                      :name   (.-name room-info)
+                      :url    (.-avatar room-info)
+                      :size   "24px"}]))
+
+(defn element-room-list-view [vm]
+  (if vm
+    [:> RoomListView {:vm vm
+                      :renderAvatar render-avatar}]
+    [:div "Room list initializing..."]))
 
 (defn room-view [selected-room]
   [:div.flex-1.flex.flex-col.bg-gray-900
