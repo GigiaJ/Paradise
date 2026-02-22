@@ -1,16 +1,19 @@
+#+TITLE: Matrix Client Login
+
 #+begin_src clojurescript :tangle ../../src/client/login.cljs
 (ns client.login
   (:require
+   [utils.logger :as log]
    [client.view-models :refer [create-room-list-vm]]
    [reagent.core :as r]
    [promesa.core :as p]
-   [client.state :refer [sdk-world]]
-  [client.session-store :refer [SessionStore]]
-  [client.sdk-ctrl :as sdk-ctrl]
-   ["generated-compat" :as sdk]
+   [client.state :refer [sdk-world mount-vm! unmount-vm!]]
+   [client.session-store :refer [SessionStore]]
+   [client.sdk-ctrl :as sdk-ctrl]
+   [room.room-list :as rl];;:refer [parse-room apply-diffs! create-room-update-listener setup-room-list-adapter!]]
+   ["generated-compat" :as sdk :refer [RoomListEntriesDynamicFilterKind]]
    ["@element-hq/web-shared-components" :refer [RoomListView BaseViewModel]])
-  (:require-macros [macros :refer [ocall oget]])
-  )
+  (:require-macros [utils.macros :refer [ocall oget]]))
 #+end_src
 
 
@@ -21,13 +24,14 @@ in the background so it feels snappy though. No client behavior can be ran
 though.
 #+begin_src clojurescript :tangle ../../src/client/login.cljs
 (defonce sdk-ready? (r/atom false))
-  (defn init-sdk! []
+
+(defn init-sdk! []
     (-> (p/let [_ (sdk/uniffiInitAsync)]
-          (js/console.log "WASM loaded")
+          (log/debug "WASM loaded")
           (reset! sdk-ready? true)
           (swap! sdk-world assoc :loading? false))
         (p/catch (fn [e]
-                   (js/console.error "WASM Load Failed:" e)
+                   (log/error "WASM Load Failed:" e)
                    (swap! sdk-world assoc :loading? false)))))
 #+end_src
 
@@ -43,25 +47,60 @@ write this with ClojureScript in mind.
 
 It seems that WASM needs camelCase after it is converted from Rust.
 So entries_handle becomes entriesStream
+
 We're currently just testing out the update triggering. We may wish to pull this logic out.
 I would think writing mock systems from the start might allow for complex mocking later.
+#+begin_src clojurescript
+(defn start-sync! [client]
+  (p/let [sync-service (-> (.syncService client) (.withOfflineMode) (.finish))
+          rls-instance (.roomListService sync-service)
+          room-list    (.allRooms rls-instance)]
+    (let [listener    (create-room-update-listener)
+          setup-done? (atom false)]
+      (.start sync-service)
+      (log/debug "Sync started. Waiting for 'Loaded' state...")
+      (let [loading-result
+            (.loadingState room-list
+                           #js {:onUpdate
+                                (fn [state]
+                                  (let [tag (.-tag state)]
+                                    (when (and (= tag "Loaded") (not @setup-done?))
+                                      (reset! setup-done? true)
+                                      (setup-room-list-adapter! room-list listener))))})]
+        (swap! sdk-world assoc-in [:vms :room-list :state-stream] (.-stateStream loading-result))))))
+#+end_src
+
+
+We're moving on with making RoomViewModel work in its entirety, but we still
+need to stub a few methods in like TimelineViewModel is a lengthy one to implement,
+so it makes more sense to stub and move on for now.
+#+begin_src clojurescript :tangle ../../src/client/login.cljs
+  (defn handle-room-selection [room-id]
+    (swap! sdk-world assoc :active-room-id room-id)
+    (unmount-vm! :active-timeline)
+    (let [client (:client @sdk-world)
+  ;;        raw-client (.-raw-client client)
+;;          raw-room (ocall raw-client :getRoom room-id)
+;;          raw-timeline-vm (new element-ui/TimelineViewModel #js {:room raw-room})
+
+          ]
+      (mount-vm! :active-timeline nil #_raw-timeline-vm)))
+#+end_src
+
+
+This generates a room-list-vm that utilizes the element-web-component as we intend.
+Currently, however, it is blocked by implementing i18n as the components are picky
+to render without it.
 #+begin_src clojurescript :tangle ../../src/client/login.cljs
 (defn start-sync! [client]
   (p/let [sync-service (-> (.syncService client) (.withOfflineMode) (.finish))
           rls-instance (.roomListService sync-service)
           room-list    (.allRooms rls-instance)]
-    (let [rl-vm (create-room-list-vm #js {:client client :roomListService rls-instance})]
-      (do
-        (aset rl-vm "onUpdate"
-              (fn [updates] (js/console.log "UPDATE TRIGGERED!" (alength updates))))
-        (let [entries-result (.entriesWithDynamicAdapters room-list 200 rl-vm)]
-            (aset rl-vm "entries_handle" (.entriesStream entries-result))
-            (aset rl-vm "controller" (.controller entries-result)))
-          (swap! sdk-world assoc-in [:vms :room-list] rl-vm)
-          (.start sync-service)
-          (.setRange  (.-controller rl-vm) 0 50)
-          (.addOnePage (.-controller rl-vm))
-          (js/console.log "Background stream handle secured. Syncing...")))))
+    (let [raw-client (.-raw-client client)
+          vm (rl/create-room-list-vm raw-client rls-instance room-list handle-room-selection)]
+      (mount-vm! :room-list vm)
+      (.start sync-service)
+      (log/debug "Sync started."))))
 #+end_src
 
 
@@ -91,7 +130,7 @@ login or restoreSession method depending on what is passed through to restore-or
                         (.serverNameOrHomeserverUrl hs)
                         (.indexeddbStore store-config)
                         (.autoEnableCrossSigning true)
-                        (cond-> (nil? passphrase)
+                        (cond-> (nil? passphrase?)
                           (.slidingSyncVersionBuilder (.-DiscoverNative SSVBuilder))))
               client  (.build builder)
               _ (restore-or-login! client)
@@ -100,13 +139,10 @@ login or restoreSession method depending on what is passed through to restore-or
               ]
         client)
       (p/catch (fn [e]
-                 (js/console.error e)
-                 (js/console.warn "Login failed, returning nil")
+                 (log/error  e)
+                 (log/warn "Login failed, returning nil")
                  nil))))
 #+end_src
-
-
-
 
 
 The login just passes on the home-server and an anonymous function
@@ -145,11 +181,18 @@ The local session exists as a JS Object once retrieved that represents the Rust 
 Now we can provide our application initialization and attempt to restore the previous login session.
 If the previous login session is found, then we start-syncing and kick off the client's run.
 #+begin_src clojurescript :tangle ../../src/client/login.cljs
-(defn bootstrap! []
-  (p/let [_ (init-sdk!)
-          data? (maybe-local-session)
-          client (restore-client!
-                  (.-session data?) (.-passphrase data?) (.-storeId data?))]
-        (start-sync! client)))
+(defn bootstrap! [on-complete]
+  (-> (p/let [_      (init-sdk!)
+              data?  (maybe-local-session)
+              client (when data?
+                       (restore-client! (.-session data?)
+                                        (.-passphrase data?)
+                                        (.-storeId data?)))]
+        (when client (on-complete client)))
+      (p/catch (fn [e]
+                 (log/error "Bootstrap/Restore failed:" e)
+                 (on-complete nil)))))
 #+end_src
 
+There is a bit to be desired in the actual interop. It is, of course, functional enough. We may wish
+to search for a better solution for it though. I feel it could be more succinct.

@@ -1,42 +1,48 @@
 (ns client.login
   (:require
+   [utils.logger :as log]
    [client.view-models :refer [create-room-list-vm]]
    [reagent.core :as r]
    [promesa.core :as p]
-   [client.state :refer [sdk-world]]
-  [client.session-store :refer [SessionStore]]
-  [client.sdk-ctrl :as sdk-ctrl]
-   ["generated-compat" :as sdk]
+   [client.state :refer [sdk-world mount-vm! unmount-vm!]]
+   [client.session-store :refer [SessionStore]]
+   [client.sdk-ctrl :as sdk-ctrl]
+   [room.room-list :as rl];;:refer [parse-room apply-diffs! create-room-update-listener setup-room-list-adapter!]]
+   ["generated-compat" :as sdk :refer [RoomListEntriesDynamicFilterKind]]
    ["@element-hq/web-shared-components" :refer [RoomListView BaseViewModel]])
-  (:require-macros [macros :refer [ocall oget]])
-  )
+  (:require-macros [utils.macros :refer [ocall oget]]))
 
 (defonce sdk-ready? (r/atom false))
-  (defn init-sdk! []
+
+(defn init-sdk! []
     (-> (p/let [_ (sdk/uniffiInitAsync)]
-          (js/console.log "WASM loaded")
+          (log/debug "WASM loaded")
           (reset! sdk-ready? true)
           (swap! sdk-world assoc :loading? false))
         (p/catch (fn [e]
-                   (js/console.error "WASM Load Failed:" e)
+                   (log/error "WASM Load Failed:" e)
                    (swap! sdk-world assoc :loading? false)))))
+
+  (defn handle-room-selection [room-id]
+    (swap! sdk-world assoc :active-room-id room-id)
+    (unmount-vm! :active-timeline)
+    (let [client (:client @sdk-world)
+  ;;        raw-client (.-raw-client client)
+;;          raw-room (ocall raw-client :getRoom room-id)
+;;          raw-timeline-vm (new element-ui/TimelineViewModel #js {:room raw-room})
+
+          ]
+      (mount-vm! :active-timeline nil #_raw-timeline-vm)))
 
 (defn start-sync! [client]
   (p/let [sync-service (-> (.syncService client) (.withOfflineMode) (.finish))
           rls-instance (.roomListService sync-service)
           room-list    (.allRooms rls-instance)]
-    (let [rl-vm (create-room-list-vm #js {:client client :roomListService rls-instance})]
-      (do
-        (aset rl-vm "onUpdate"
-              (fn [updates] (js/console.log "UPDATE TRIGGERED!" (alength updates))))
-        (let [entries-result (.entriesWithDynamicAdapters room-list 200 rl-vm)]
-            (aset rl-vm "entries_handle" (.entriesStream entries-result))
-            (aset rl-vm "controller" (.controller entries-result)))
-          (swap! sdk-world assoc-in [:vms :room-list] rl-vm)
-          (.start sync-service)
-          (.setRange  (.-controller rl-vm) 0 50)
-          (.addOnePage (.-controller rl-vm))
-          (js/console.log "Background stream handle secured. Syncing...")))))
+    (let [raw-client (.-raw-client client)
+          vm (rl/create-room-list-vm raw-client rls-instance room-list handle-room-selection)]
+      (mount-vm! :room-list vm)
+      (.start sync-service)
+      (log/debug "Sync started."))))
 
 (defn build-client [hs passphrase? store-id? restore-or-login!]
   (-> (p/let [
@@ -56,7 +62,7 @@
                         (.serverNameOrHomeserverUrl hs)
                         (.indexeddbStore store-config)
                         (.autoEnableCrossSigning true)
-                        (cond-> (nil? passphrase)
+                        (cond-> (nil? passphrase?)
                           (.slidingSyncVersionBuilder (.-DiscoverNative SSVBuilder))))
               client  (.build builder)
               _ (restore-or-login! client)
@@ -65,8 +71,8 @@
               ]
         client)
       (p/catch (fn [e]
-                 (js/console.error e)
-                 (js/console.warn "Login failed, returning nil")
+                 (log/error  e)
+                 (log/warn "Login failed, returning nil")
                  nil))))
 
 (defn login! [hs user pass]
@@ -83,9 +89,14 @@
           user-id (first (js/Object.keys sessions))]
     (or (aget sessions user-id) nil)))
 
-(defn bootstrap! []
-  (p/let [_ (init-sdk!)
-          data? (maybe-local-session)
-          client (restore-client!
-                  (.-session data?) (.-passphrase data?) (.-storeId data?))]
-        (start-sync! client)))
+(defn bootstrap! [on-complete]
+  (-> (p/let [_      (init-sdk!)
+              data?  (maybe-local-session)
+              client (when data?
+                       (restore-client! (.-session data?)
+                                        (.-passphrase data?)
+                                        (.-storeId data?)))]
+        (when client (on-complete client)))
+      (p/catch (fn [e]
+                 (log/error "Bootstrap/Restore failed:" e)
+                 (on-complete nil)))))
