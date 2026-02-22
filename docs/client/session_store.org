@@ -1,11 +1,9 @@
 #+begin_src clojurescript :tangle ../../src/client/session_store.cljs
 (ns client.session-store
 (:require [promesa.core :as p]
-["generated-compat" :as sdk]))
+          [utils.logger :as log]
+          ["generated-compat" :as sdk]))
 #+end_src
-
-
-
 
 *** Constants and Utilities
 
@@ -24,7 +22,7 @@ This grabs the Session constructor from the matrix_sdk namespace within our bund
   (let [sdk-root (if (.-Session sdk) sdk (.-default sdk))]
     (if sdk-root
       (.-Session sdk-root)
-      (js/console.error "FATAL: Could not find Session class on root SDK object."))))
+      (log/error "FATAL: Could not find Session class on root SDK object."))))
 #+end_src
 
 
@@ -125,7 +123,6 @@ final-id   (or store-id   (when existing (aget existing "storeId")))]
                               :storeId final-id})
   (save-raw-sessions-js! sessions))))
 #+end_src
-
 
 Removes the specific user's database and metadata.
 #+begin_src clojurescript :tangle ../../src/client/session_store.cljs

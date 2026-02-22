@@ -1,6 +1,7 @@
 (ns client.session-store
 (:require [promesa.core :as p]
-["generated-compat" :as sdk]))
+          [utils.logger :as log]
+          ["generated-compat" :as sdk]))
 
 (def ^:private storage-key "mx_session_v3")
 
@@ -9,7 +10,7 @@
   (let [sdk-root (if (.-Session sdk) sdk (.-default sdk))]
     (if sdk-root
       (.-Session sdk-root)
-      (js/console.error "FATAL: Could not find Session class on root SDK object."))))
+      (log/error "FATAL: Could not find Session class on root SDK object."))))
 
 (defn- load-raw-sessions-js []
 (let [stored (.getItem js/localStorage storage-key)]
