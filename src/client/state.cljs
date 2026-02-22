@@ -1,9 +1,10 @@
-(ns client.state
-  (:require [reagent.core :as r]
-            [clojure.string :as str]
-            [cljs.spec.alpha :as s]
-            ["@element-hq/web-shared-components" :as element-ui])
-  (:require-macros [macros :refer [ocall oget]]))
+  (ns client.state
+    (:require [reagent.core :as r]
+              [clojure.string :as str]
+              [cljs.spec.alpha :as s]
+              [utils.logger :as log]
+              ["@element-hq/web-shared-components" :as element-ui])
+    (:require-macros [macros :refer [ocall oget]]))
 
 (defprotocol IMatrixClient
   "Structured access to the Matrix Rust SDK Client"
@@ -27,9 +28,8 @@
   (dispose! [_]
     (try
       (ocall raw-client :uniffiDestroy)
-      (js/console.log "WASM Client Destroyed")
+      (log/debug "WASM Client Destroyed")
       (catch js/Error _ nil)))
-
   Object
   (toString [_] (str "#<MatrixClient " (try (ocall raw-client :userId) (catch js/Error _ "unknown")) ">")))
 
@@ -38,7 +38,7 @@
 (s/def ::matrix-client #(satisfies? IMatrixClient %))
 (s/def ::sdk-world (s/keys :req-un [::matrix-client]))
 
-(defn make-world 
+(defn make-world
   "Factory to ensure we never inject raw WASM into the state."
   [params]
   (let [new-world (map->SDKWorld params)]
@@ -46,12 +46,12 @@
       new-world
       (throw (js/Error. (str "Invalid SDK World State: " (s/explain-str ::sdk-world new-world)))))))
 
-(defonce sdk-world 
-  (r/atom (map->SDKWorld 
-            {:client nil 
-             :rooms [] 
-             :active-room nil 
-             :ctrl nil 
+(defonce sdk-world
+  (r/atom (map->SDKWorld
+            {:client nil
+             :rooms []
+             :active-room nil
+             :ctrl nil
              :handles {:entries nil :loading nil}
              :loading? true})))
 
@@ -59,16 +59,18 @@
            (fn [_ _ _ new-state]
              (let [c (:client new-state)]
                (when (and c (not (satisfies? IMatrixClient c)))
-                 (js/console.error "TYPE VIOLATION: Raw WASM object detected in sdk-world! 
+                 (log/error "TYPE VIOLATION: Raw WASM object detected in sdk-world!
                            Did you forget to wrap it in (MatrixClient. obj)?")))))
 
-(defn hook-vm! 
+
+
+(defn hook-vm!
   "Connects an npm ViewModel to our Reagent world."
   [vm atom-path]
   (let [sync-fn #(swap! sdk-world assoc-in atom-path (.getSnapshot vm))
         _ (sync-fn)
         unsub (.subscribe vm sync-fn)]
-    (fn [] 
+    (fn []
       (unsub)
       (.dispose vm))))
 
@@ -88,20 +90,20 @@
             :dispose (fn []
                        (unsub)
                        (.dispose raw-vm))})
-    (js/console.log (str "Mounted VM: " id))))
+    (log/debug (str "Mounted VM: " id))))
 
-(defn unmount-vm! 
+(defn unmount-vm!
   "Safely unplugs a ViewModel and clears its memory."
   [id]
   (when-let [vm-map (get-in @sdk-world [:vms id])]
     ((:dispose vm-map))
     (swap! sdk-world update :vms dissoc id)
     (swap! sdk-world update :snapshots dissoc id)
-    (js/console.log (str "Unmounted VM: " id))))
+    (log/debug (str "Unmounted VM: " id))))
 
 (defn ^:export debug-world []
     (let [data (clj->js @sdk-world)]
-      (js/console.log "SDK WORLD DUMP:" data)
+      (log/debug "SDK WORLD DUMP:" data)
       data))
 
 (defn set-client! [raw-wasm-obj]
