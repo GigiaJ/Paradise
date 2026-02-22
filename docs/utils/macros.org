@@ -2,11 +2,10 @@ So we need some helper macros to cover a number of circumstances whether that be
 just shortening or cleaning up usage to patching Vite and other incompatibilities.
 
 
-#+begin_src clojurescript :tangle ../../src/utils/macros.cljs
+#+begin_src clojurescript :tangle ../../src/utils/macros.cljc
 (ns utils.macros
   (:require [clojure.java.io :as io]))
 #+end_src
-
 
 These macros are effectively just wrappers that provide clean
 interop with the underlying Rust objects as the Rust objects
