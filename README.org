@@ -73,12 +73,16 @@ asset server simultaneously.
 *** 1. Start the CLJS Watcher
 This handles the compilation of the ~.cljs~ files and provides the REPL.
 #+begin_src sh :async t
-npx shadow-cljs watch app
+npm run dev
 #+end_src
 
-*** 2. Start the Vite Server
-Vite handles the WASM integration and serves the frontend.
-#+begin_src sh :async t
+This initializes the following commands:
+ShadowCLJS
+npx shadow-cljs watch app
+Vite
 npx vite
-#+end_src
+Org Tangler
+npx nbb src/utils/tangler.cljs
+
+
 
