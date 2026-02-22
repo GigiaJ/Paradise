@@ -1,0 +1,154 @@
+A thought here, as these can execute before runtime is to make the tangler
+macro-like then. If we actually make a build hook with the lifecycle target
+:compile-prepare we can tangle .org files into their CLJS locations quite
+easily.
+
+This allows us to create the first step to org-mode simulation inside the repo.
+We do *not* wish to enforce all of org-mode onto developers. Emacs should be optional
+
+That said, I personally recommend giving it a try at least and stick with it for a
+few weeks. Even feel free to constantly ask an LLM what keybinds are what, use
+Spacemacs, or even gptel for an embedded AI so you can stay in Emacs better
+and ask your questions. It's a refreshingly different experience.
+
+Nonetheless, we aim to allow developers to use whatever platform they choose
+as long as it can handle org-mode blocks.
+
+It is realistically only reasonable to support the most popular editor on the planet
+VS Code. An extension may wish to register .org files via a new extension:
+#+begin_src json
+"languages": [
+  {
+    "id": "org",
+    "extensions": [".org"]
+  }
+]
+#+end_src
+
+After which then inject grammar into src blocks with TextMate.
+Along the lines of:
+#+begin_src jsonc
+{
+  "scopeName": "org.embedded.clojure",
+  "injectionSelector": "L:text.org", 
+  "patterns": [
+    {
+      "begin": "^(\\s*)(#\\+BEGIN_SRC)\\s+(clojure)",
+      "beginCaptures": {
+        "2": { "name": "keyword.control.org" },
+        "3": { "name": "constant.language.org" }
+      },
+      "end": "^(\\s*)(#\\+END_SRC)",
+      "endCaptures": {
+        "2": { "name": "keyword.control.org" }
+      },
+      "contentName": "source.clojure",
+      "patterns": [
+        { "include": "source.clojure" }
+      ]
+    }
+  ]
+  }
+#+end_src
+
+
+Then with a virtual URI like:
+#+begin_src shell
+org-block://path/to/file.org:123.clj
+#+end_src
+
+This should allow Calva to register the org file and give LSP
+behavior inside the block. I'll have to actually build the extension later,
+but in concept this should at least open the project to contributors who
+don't naturally use org-mode.
+
+I do wonder if we can embed the plugin in the repo itself so we can reduce the
+burden on the end user even more.
+
+The idea is to introduce them to org files and literate programming while
+making sure we're showing that it is immensely unintruisive.
+
+** Built-in Org Tangler
+
+These build hooks provide the ability for CLJS to auto-tangle org files for you.
+Now while Emacs has this functionality baked in... This does not help those
+who do not use Emacs. Instead, we can provide a feature everyone can use
+to contribute in the way that best serves the goal of being inclusive, but
+still out of the way.
+
+This one evaluates the src blocks inside the org file and then pumps out all of the
+tangled blocks out.
+
+
+
+
+#+begin_src clojurescript :tangle ../../src/utils/tangler.cljs
+(ns tangle
+  (:require ["fs" :as fs]
+            ["path" :as path]
+            [clojure.string :as str]))
+
+#+end_src
+
+
+This iterates over the org mode files in the path supplied.
+It looks at the src block for the designation "clojurescript" and if it has "tangle"
+Using those it'll know where to place the output file.
+Since this is a simple tangler in one language it obviously doesn't have the capacity
+to do more than 'clojurescript' however since the method of determination is simple this
+could easily be extended later to support more.
+#+begin_src clojurescript :tangle ../../src/utils/tangler.cljs
+(defn tangle-file [f-path]
+  (let [content (fs/readFileSync f-path "utf8")
+        blocks (re-seq #"(?is)#\+begin_src\s+clojurescript\s+:tangle\s+([^\s\n]+).*?\n(.*?)\n#\+end_src" content)
+        tangled-map (reduce (fn [acc [_ rel-path code]]
+                              (update acc rel-path (fnil conj []) code))
+                            {}
+                            blocks)]
+    (doseq [[rel-path codes] tangled-map]
+      (when (not= rel-path "no")
+        (let [full-path (path/resolve (path/dirname f-path) rel-path)
+              new-code (str/join "\n\n" codes)
+              old-code (if (fs/existsSync full-path) (fs/readFileSync full-path "utf8") "")]
+          (when (not= (str/trim old-code) (str/trim new-code))
+            (fs/mkdirSync (path/dirname full-path) #js {:recursive true})
+            (fs/writeFileSync full-path new-code)
+            (println "  > Tangled (Updated):" full-path)))))))
+#+end_src
+
+This just supplies the directory that should be scanned for org files.
+It then calls the tangle-file method on matching files within there.
+It avoids picking up Emacs lock files, so there shouldn't be any worry
+for Emacs users to just allow the tangling to be performed by the client's
+tangler function.
+#+begin_src clojurescript :tangle ../../src/utils/tangler.cljs
+(defn run-tangle-all []
+  (let [docs-dir "docs"]
+    (when (fs/existsSync docs-dir)
+      (let [scan (fn scan [dir]
+                   (doseq [f (fs/readdirSync dir)]
+                     (when (not (str/starts-with? f "."))
+                       (let [p (path/join dir f)
+                             stat (fs/statSync p)]
+                         (cond
+                           (.isDirectory stat) (scan p)
+                           (str/ends-with? f ".org") (tangle-file p))))))]
+        (scan docs-dir)))))
+#+end_src
+
+
+This sets the tangler to be watched and long lived. It also sets
+the interval to scan the file system for changes. That way it can
+neatly fit in the ClojureScript web development process.
+#+begin_src clojurescript :tangle ../../src/utils/tangler.cljs
+(defn watch []
+  (println "--- nbb Org-Tangle Watcher Active ---")
+  (run-tangle-all)
+  (js/setInterval run-tangle-all 1000))
+
+(watch)
+#+end_src
+
+
+Then, of course, we have plans to write a quick VS Code extension to open
+up development options to a much larger audience.
