@@ -3,6 +3,7 @@
    ;; Need 1.88 and we're simply... testing
    ; "rust"
    "curl"
+   "findutils"
    "grep"
    "gcc-toolchain"
    "pkg-config"
