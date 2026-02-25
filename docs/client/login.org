@@ -7,15 +7,16 @@
    [client.view-models :refer [create-room-list-vm]]
    [reagent.core :as r]
    [promesa.core :as p]
+   [re-frame.core :as re-frame]
    [client.state :refer [sdk-world mount-vm! unmount-vm!]]
    [client.session-store :refer [SessionStore]]
    [client.sdk-ctrl :as sdk-ctrl]
+   [spaces.bar :refer [init-space-service!]]
    [room.room-list :as rl];;:refer [parse-room apply-diffs! create-room-update-listener setup-room-list-adapter!]]
    ["generated-compat" :as sdk :refer [RoomListEntriesDynamicFilterKind]]
    ["@element-hq/web-shared-components" :refer [RoomListView BaseViewModel]])
   (:require-macros [utils.macros :refer [ocall oget]]))
 #+end_src
-
 
 This serves as a ready check for the WASM (and our global sdk-world).
 We can not start the application until the WASM has loaded.
@@ -50,58 +51,30 @@ So entries_handle becomes entriesStream
 
 We're currently just testing out the update triggering. We may wish to pull this logic out.
 I would think writing mock systems from the start might allow for complex mocking later.
-#+begin_src clojurescript
-(defn start-sync! [client]
-  (p/let [sync-service (-> (.syncService client) (.withOfflineMode) (.finish))
-          rls-instance (.roomListService sync-service)
-          room-list    (.allRooms rls-instance)]
-    (let [listener    (create-room-update-listener)
-          setup-done? (atom false)]
-      (.start sync-service)
-      (log/debug "Sync started. Waiting for 'Loaded' state...")
-      (let [loading-result
-            (.loadingState room-list
-                           #js {:onUpdate
-                                (fn [state]
-                                  (let [tag (.-tag state)]
-                                    (when (and (= tag "Loaded") (not @setup-done?))
-                                      (reset! setup-done? true)
-                                      (setup-room-list-adapter! room-list listener))))})]
-        (swap! sdk-world assoc-in [:vms :room-list :state-stream] (.-stateStream loading-result))))))
-#+end_src
 
 
-We're moving on with making RoomViewModel work in its entirety, but we still
-need to stub a few methods in like TimelineViewModel is a lengthy one to implement,
-so it makes more sense to stub and move on for now.
-#+begin_src clojurescript :tangle ../../src/client/login.cljs
-  (defn handle-room-selection [room-id]
-    (swap! sdk-world assoc :active-room-id room-id)
-    (unmount-vm! :active-timeline)
-    (let [client (:client @sdk-world)
-  ;;        raw-client (.-raw-client client)
-;;          raw-room (ocall raw-client :getRoom room-id)
-;;          raw-timeline-vm (new element-ui/TimelineViewModel #js {:room raw-room})
-
-          ]
-      (mount-vm! :active-timeline nil #_raw-timeline-vm)))
-#+end_src
-
+We started with view models but eventually moved towards more Clojure native
+implementations that align better with reframe to make writing more idiomatic.
+As such it becomes much simpler to initialize and manage the state.
+Though this does mean we'll retroactively need to add methods to do certain
+behaviors against the Rust sdk.
 
 This generates a room-list-vm that utilizes the element-web-component as we intend.
-Currently, however, it is blocked by implementing i18n as the components are picky
-to render without it.
+This is a good spot to explore what the Rust FFI exposes to use in the client as well.
+Such as the space_service is useful to avoid manaul calculation of the spaces vs rooms.
+We can actually use it to get the rooms in a space for effortless filtering.
 #+begin_src clojurescript :tangle ../../src/client/login.cljs
 (defn start-sync! [client]
   (p/let [sync-service (-> (.syncService client) (.withOfflineMode) (.finish))
           rls-instance (.roomListService sync-service)
-          room-list    (.allRooms rls-instance)]
-    (let [raw-client (.-raw-client client)
-          vm (rl/create-room-list-vm raw-client rls-instance room-list handle-room-selection)]
-      (mount-vm! :room-list vm)
-      (.start sync-service)
-      (log/debug "Sync started."))))
+          room-list (.allRooms rls-instance)
+          _ (rl/start-room-list-sync! room-list)
+          _ (.start sync-service)
+          _ (init-space-service! client)
+          ]
+      (log/debug "Sync started.")))
 #+end_src
+
 
 
 This actually was relatively quick to figure out, but the client builder merely takes
