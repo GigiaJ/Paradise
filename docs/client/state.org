@@ -69,8 +69,10 @@
   (r/atom (map->SDKWorld
             {:client nil
              :rooms []
+             :spaces []
              :active-room nil
              :ctrl nil
+             :i18n nil
              :handles {:entries nil :loading nil}
              :loading? true})))
 #+end_src
@@ -87,6 +89,17 @@
 
 #+end_src
 
+
+Later we may wish to use the i18n translation in our own components. This provides that functionality.
+#+begin_src clojurescript :tangle ../../src/client/state.cljs
+(defn tl
+  "Translates a key using the global SDK i18n instance."
+  ([key] (t key nil))
+  ([key opts]
+   (if-let [api (:i18n @sdk-world)]
+     (.translate api key (clj->js opts))
+     key)))
+#+end_src
 
 #+begin_src clojurescript :tangle ../../src/client/state.cljs
 (defn hook-vm!
