@@ -30,3 +30,6 @@ package-lock.json
 
 Thumbs.db
 .DS_Store
+
+packages/generated-compat/
+packages/generated/
