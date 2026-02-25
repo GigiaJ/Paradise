@@ -4,9 +4,11 @@
    [client.view-models :refer [create-room-list-vm]]
    [reagent.core :as r]
    [promesa.core :as p]
+   [re-frame.core :as re-frame]
    [client.state :refer [sdk-world mount-vm! unmount-vm!]]
    [client.session-store :refer [SessionStore]]
    [client.sdk-ctrl :as sdk-ctrl]
+   [spaces.bar :refer [init-space-service!]]
    [room.room-list :as rl];;:refer [parse-room apply-diffs! create-room-update-listener setup-room-list-adapter!]]
    ["generated-compat" :as sdk :refer [RoomListEntriesDynamicFilterKind]]
    ["@element-hq/web-shared-components" :refer [RoomListView BaseViewModel]])
@@ -23,26 +25,15 @@
                    (log/error "WASM Load Failed:" e)
                    (swap! sdk-world assoc :loading? false)))))
 
-  (defn handle-room-selection [room-id]
-    (swap! sdk-world assoc :active-room-id room-id)
-    (unmount-vm! :active-timeline)
-    (let [client (:client @sdk-world)
-  ;;        raw-client (.-raw-client client)
-;;          raw-room (ocall raw-client :getRoom room-id)
-;;          raw-timeline-vm (new element-ui/TimelineViewModel #js {:room raw-room})
-
-          ]
-      (mount-vm! :active-timeline nil #_raw-timeline-vm)))
-
 (defn start-sync! [client]
   (p/let [sync-service (-> (.syncService client) (.withOfflineMode) (.finish))
           rls-instance (.roomListService sync-service)
-          room-list    (.allRooms rls-instance)]
-    (let [raw-client (.-raw-client client)
-          vm (rl/create-room-list-vm raw-client rls-instance room-list handle-room-selection)]
-      (mount-vm! :room-list vm)
-      (.start sync-service)
-      (log/debug "Sync started."))))
+          room-list (.allRooms rls-instance)
+          _ (rl/start-room-list-sync! room-list)
+          _ (.start sync-service)
+          _ (init-space-service! client)
+          ]
+      (log/debug "Sync started.")))
 
 (defn build-client [hs passphrase? store-id? restore-or-login!]
   (-> (p/let [
