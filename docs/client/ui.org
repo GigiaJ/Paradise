@@ -15,24 +15,37 @@ required to move forward. Of course, it'll prove useful later too with a full cl
 implementation.
 #+begin_src clojurescript :tangle ../../src/client/ui.cljs
 (defn login-screen [on-login-trigger]
-  (let [fields (r/atom {:hs (or js/process.env.MATRIX_HOMESERVER "") :user "" :pass ""})]
-    (fn [on-login-trigger]
+  (let [fields (r/atom {:hs (or js/process.env.MATRIX_HOMESERVER "")
+                        :user ""
+                        :pass ""})]
+    (fn []
       [:div.login-container.flex.flex-col.items-center.justify-center.h-screen.bg-gray-900
        [:h2.text-white.mb-4 "Paradise Login"]
+
        [:input.mb-2.p-2.rounded.bg-gray-700.text-white
-        {:type "text" :placeholder "Homeserver" :value (:hs @fields)
+        {:type "text"
+         :placeholder "Homeserver"
+         :value (:hs @fields)
          :on-change #(swap! fields assoc :hs (.. % -target -value))}]
+
        [:input.mb-2.p-2.rounded.bg-gray-700.text-white
-        {:type "text" :placeholder "Username"
+        {:type "text"
+         :placeholder "Username"
          :on-change #(swap! fields assoc :user (.. % -target -value))}]
+
        [:input.mb-2.p-2.rounded.bg-gray-700.text-white
-        {:type "password" :placeholder "Password"
+        {:type "password"
+         :placeholder "Password"
          :on-change #(swap! fields assoc :pass (.. % -target -value))}]
+
        [:button.p-2.rounded.bg-blue-600.text-white.hover:bg-blue-500
         {:on-click (fn [e]
                      (.preventDefault e)
-                     (on-login-trigger (:hs @fields) (:user @fields) (:pass @fields)))}
+                     (on-login-trigger (:hs @fields)
+                                       (:user @fields)
+                                       (:pass @fields)))}
         "Login"]])))
+
 #+end_src
 
 ;; Currently a filler block until we finish handling the room view model.
