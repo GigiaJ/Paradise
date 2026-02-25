@@ -13,14 +13,14 @@
         "ubrn:clean": "rm -Rf cpp/ src/generated/ src/index.web.ts*"
     },
     "dependencies": {
-        "@babel/preset-typescript": "^7.28.5",
         "@element-hq/web-shared-components": "0.0.2",
-        "@matrix-org/matrix-sdk-crypto-wasm": "^17.1.0",
+        "@vector-im/compound-design-tokens": "^6.0.0",
         "@vector-im/compound-web": "^8.3.6",
         "generated-compat": "file:./packages/generated-compat",
         "nbb": "^1.4.206",
         "react": "^19",
         "react-dom": "^19",
+        "react-virtuoso": "^4.18.1",
         "shadow-cljs": "^3.3.6",
         "typescript": "^5.9.3",
         "uniffi-bindgen-react-native": "git+https://github.com/jhugman/uniffi-bindgen-react-native#5c01f3f7025d069aac1dd1fd51ca72bb76fdb243"
@@ -32,6 +32,7 @@
         "@babel/plugin-transform-class-properties": "^7.28.6",
         "@babel/plugin-transform-computed-properties": "^7.28.6",
         "@babel/preset-env": "^7.29.0",
+        "@babel/preset-typescript": "^7.28.5",
         "babel-plugin-transform-rename-import": "^2.3.0",
         "concurrently": "^9.2.1",
         "vite": "^7.3.1",
