@@ -50,8 +50,10 @@
   (r/atom (map->SDKWorld
             {:client nil
              :rooms []
+             :spaces []
              :active-room nil
              :ctrl nil
+             :i18n nil
              :handles {:entries nil :loading nil}
              :loading? true})))
 
@@ -63,6 +65,14 @@
                            Did you forget to wrap it in (MatrixClient. obj)?")))))
 
 
+
+(defn tl
+  "Translates a key using the global SDK i18n instance."
+  ([key] (t key nil))
+  ([key opts]
+   (if-let [api (:i18n @sdk-world)]
+     (.translate api key (clj->js opts))
+     key)))
 
 (defn hook-vm!
   "Connects an npm ViewModel to our Reagent world."
