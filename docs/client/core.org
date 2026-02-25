@@ -20,26 +20,46 @@ build hooks in order to enable easy
             [client.login :as login]
             [client.i18n-map :as i18n-map]
             [client.ui :as ui]
+            [re-frame.core :as re-frame]
             [room.room-list :as rl]
+;;            [spaces.bar :refer [select-space!]]
             [client.state :as state :refer [sdk-world]]
             [client.view-models :refer [mount-vm! unmount-vm!]]
             [promesa.core :as p]
+            [app :as app]
             [client.timeline :as timeline])
-  (:require-macros [utils.macros :refer [ocall oget]]))
+  (:require-macros [utils.macros :refer [ocall oget]])
+  )
+
 #+end_src
+
 
 
 We intend to this to be passed as a callback where needed and handle any client
 operations here up until the point in which the client is 'started'.
 #+begin_src clojurescript :tangle ../../src/client/core.cljs
-(defn on-client-ready [raw-client]
+  #_(defn on-client-ready [raw-client]
   (p/let [
 ;; should probably check for null client here and if null prompt login
           _ (state/set-client! raw-client)
+
           wrapped-client (:client state/sdk-world)
           _ (login/start-sync! raw-client)
           ;;         _  (setup-room-list! wrapped-client)
           ]))
+
+(re-frame/reg-event-db
+ :sdk/set-client
+ (fn [db [_ raw-client]]
+   (assoc db :client raw-client)))
+
+(defn on-client-ready [raw-client]
+  (if raw-client
+    (p/let [_ (re-frame/dispatch-sync [:sdk/set-client raw-client])
+            _ (login/start-sync! raw-client)]
+      nil)
+    #_(re-frame/dispatch [:auth/prompt-login])))
+
 #+end_src
 
 
@@ -67,6 +87,9 @@ A few effectively helper functions for now until the View Models are fleshed out
           raw-room (ocall raw-client :getRoom room-id)
           raw-timeline-vm (new element-ui/TimelineViewModel #js {:room raw-room})]
       (mount-vm! :active-timeline raw-timeline-vm)))
+
+
+
 #+end_src
 
 Trying to get i18n working. The components from web-components
@@ -74,64 +97,95 @@ actually *expect* this to be present. It's smart to already plan around this
 from the start anyway.
 #+begin_src clojurescript :tangle ../../src/client/core.cljs
 (defn load-lang! [lang]
-  (let [url (get i18n-map/urls lang (get i18n-map/urls "en"))]
-    (-> (js/fetch url)
-        (.then #(.json %))
-        (.then #(element-ui/registerTranslations lang %)))))
+  (let [;; Try specific lang, then base lang, then hard fallback
+        base-lang (first (clojure.string/split lang #"_"))
+        url (or (get i18n-map/urls lang)
+                (get i18n-map/urls base-lang)
+                (get i18n-map/urls "en_EN"))]
+    (log/debug "Fetching translation from:" url)
+    (-> (p/promise (js/fetch url))
+        (p/then #(.json %))
+        (p/then #(element-ui/registerTranslations lang %)))))
 
 (defn create-i18n-api []
   (p/let [api (element-ui/I18nApi.)
-          current-lang (.-language api)
-          _ (load-lang! current-lang)]
+          raw-lang (oget api :language)
+          current-lang (case raw-lang
+                         "en" "en_EN"
+                         "fr" "fr_FR"
+                         raw-lang)
+          _ (load-lang! current-lang)
+          ]
     (log/info "Translations loaded for:" current-lang)
     api))
 
-(defonce i18n-state (r/atom {:loading? true :api nil}))
-
 (defn init-i18n! []
-  (try
-    (log/info "Triggered")
-    (let [api (create-i18n-api)]
-      (reset! i18n-state {:loading? false :api api}))
-    (catch :default e
-      (js/console.error "Manual I18n init failed" e))))
+  (-> (p/let [api (create-i18n-api)]
+        (swap! sdk-world assoc :i18n api))
+      (p/catch #(log/error % "Failed to ignite the I18n engine"))))
 #+end_src
+
 
 
 For now this merely provides an outline to work within.
+For now, this'll do. We'll start building out more elegant
+client UIs after we start getting some of the internals working.
+This at least segments the client into two portions. The room
+and the sidebar.
 #+begin_src clojurescript :tangle ../../src/client/core.cljs
 (defn app []
   (let [world @sdk-world
-        {:keys [client loading? snapshots vms active-room-id api]} world
+        {:keys [client loading? snapshots vms active-room-id i18n]} world
         room-list-vm-instance (get-in vms [:room-list :instance])
         timeline-data (get-in snapshots [:active-timeline])]
-    (js/console.log "Is component nil?" (nil? ui/element-room-list-view))
-;;    [:div.h-screen.flex.bg-gray-900.text-white
-    (cond
-       loading? [:div "Loading Translations..."]
-       (not api) [:div "Error: Translations failed to load."]
-       :else
-       [:> I18nContext.Provider {:value api}
-        [:div.cpd-theme-dark.cpd-dark.mx_MatrixChat.h-screen
+;;    (js/console.log "Is component nil?" (nil? ui/element-room-list-view))
+
+
+       (ui/login-screen handle-login-request)
+    #_    [:div {:style {:display "flex" :flex-direction "row" :width "100vw" :height "100vh" :overflow "hidden"}
+       :class "cpd-theme-dark mx_MatrixChat"}
+
+     #_(cond
+   loading? [:div "Loading Translations..."]
+   (not i18n) [:div "Error: Translations failed to load."]
+   :else
+   [:> (.-Provider I18nContext) {:value i18n}
     [:> TooltipProvider
-     [:div.flex.items-center.justify-center.w-full.h-full
-        [:span.text-xl.animate-pulse "Connecting to Matrix..."]]
-       ;;client
-       [:<>
-        (let [room-list-vm (get-in vms [:room-list])]
-          (when room-list-vm
-            [:> RoomListView {:vm room-list-vm-instance :renderAvatar ui/render-avatar}]))
-        (if active-room-id
-          [ui/room-view active-room-id timeline-data]
-          [:div.flex-1.flex.items-center.justify-center.text-gray-500
-           "Select a room to start chatting"])]
-       ;;:else
-       ;;[ui/login-screen handle-login-request]
-     ]
-         ]
-             ]
-    )))
+     ;; --- NEW SPACE RAIL ---
+     [:aside {:className "mx_SpaceRail"
+              :style {:width "72px" :background-color "#1e1f22" :display "flex" :flex-direction "column" :align-items "center" :padding-top "12px"}}
+      (for [space (:spaces world)]
+        (let [id (.-roomId space)
+              ;; Fallback to ID if name is missing to prevent the crash
+              name (or (.-name space) id "Unknown Space")
+              avatar (.-avatarUrl space)]
+          ^{:key id}
+          [:div {:style {:width "48px" :height "48px" :margin-bottom "8px" :cursor "pointer"}
+                 :on-click #(select-space! id)}
+           (if (and avatar (not= avatar ""))
+             [:img {:src avatar :style {:border-radius "50%" :width "100%" :height "100%"}}]
+             [:div {:style {:border-radius "50%" :background "#313338" :color "white" 
+                            :display "flex" :align-items "center" :justify-content "center" :height "100%"}}
+              (if (seq name) (subs name 0 1) "?")])]))]
+     (let [room-list-vm (get-in vms [:room-list])]
+       (when room-list-vm
+         [:nav {:className "mx_RoomList" :style {:width "240px"}}
+          [:> RoomListView {:vm room-list-vm-instance
+                            :renderAvatar ui/render-avatar}]]))
+
+     ;; --- MAIN PANEL ---
+     [:main.mx_MainPanel.flex-1.h-full
+      [:div.flex.h-full.items-center.justify-center
+       "Select a room"]]]])]))
 #+end_src
+
+
+#_[:div.flex-1.flex.flex-col.h-full.relative
+   (if active-room-id
+     [ui/room-view active-room-id timeline-data]
+     [:div.flex.items-center.justify-center.h-full.text-gray-500
+      "Select a room to start chatting"])]
+
 
 
 Really just preparing for reagent, react, and re-frame
@@ -139,22 +193,23 @@ Really just preparing for reagent, react, and re-frame
 (defonce root (atom nil))
 (defn render! []
   (when-not @root
-    (let [el (.getElementById js/document "app")]
+    (let [el (.getElementById js/document "root")]
       (reset! root (rdom/create-root el))))
   (rdom/render @root [app]))
 #+end_src
 
 
-
-
 Provides the entry-point for the application that Vite and the index.html enter from.
 #+begin_src clojurescript  :tangle ../../src/client/core.cljs
 (defn ^:export init []
-  (init-i18n!)
-  (logger/init!)
-  (log/debug  "Entering Paradise!")
-  (login/bootstrap! on-client-ready)
-  (render!))
+(app/init)
+(init-i18n!)
+(logger/init!)
+(log/debug  "Entering Paradise!")
+(login/bootstrap! on-client-ready)
+
+#_(render!)
+  )
 #+end_src
 
 
@@ -175,5 +230,3 @@ This will ensure the components dismount properly on refresh.
                          :active-room-id nil})
   (log/debug "State reset and memory cleared."))
 #+end_src
-
-
