@@ -1,0 +1,57 @@
+
+
+So the diffs inside the Rust SDK actually are all in the same form,
+so instead of handling them independently we can define one method that
+handles all of them and allows it to be informed of the parse method
+the mechanism wishes to use
+
+#+begin_src clojurescript :tangle ../../src/client/diff_handler.cljs
+(ns client.diff-handler
+  (:require
+   [reagent.core :as r]
+   [reagent.dom.client :as rdom]
+   [taoensso.timbre :as log]
+   [promesa.core :as p]
+   [re-frame.core :as re-frame]))
+
+
+(defn apply-matrix-diffs [current-items updates parse-fn]
+  (let [initial-items (vec (or current-items []))
+        _ (js/console.log current-items)
+        _ (js/console.log updates)]
+    (p/loop [i 0
+             items initial-items]
+      (if (< i (.-length updates))
+        (let [update (aget updates i)
+              tag    (str (.-tag update))
+              inner  (.-inner update)
+              ]
+          (p/let [new-items
+                  (case tag
+                    "Reset"     (p/let [p (p/all (map parse-fn (.-values inner)))] 
+                                  (vec p))
+                    "PushBack"  (p/let [p (parse-fn (.-value inner))] 
+                                  (conj items p))
+                    "PushFront" (p/let [p (parse-fn (.-value inner))] 
+                                  (into [p] items))
+                    "Clear"     []
+                    "PopFront"  (vec (rest items))
+                    "PopBack"   (if (empty? items) [] (pop items))
+                    "Truncate"  (vec (take (.-length inner) items))
+                    "Insert"    (p/let [p   (parse-fn (.-value inner))
+                                        idx (.-index inner)]
+                                  (vec (concat (subvec items 0 idx) [p] (subvec items idx))))
+                    "Remove"    (let [idx (.-index inner)]
+                                  (vec (concat (subvec items 0 idx) (subvec items (inc idx)))))
+                    "Set"       (p/let [p   (parse-fn (.-value inner))
+                                        idx (.-index inner)]
+                                  (if (contains? items idx)
+                                    (assoc items idx p)
+                                    items))
+                    items)]
+            (p/recur (inc i) (vec (or new-items items)))))
+        (vec items)))))
+
+
+
+#+end_src
