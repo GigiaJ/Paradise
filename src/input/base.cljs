@@ -1,0 +1,46 @@
+(ns input.base
+  (:require [promesa.core :as p]
+            [re-frame.core :as re-frame]
+            [taoensso.timbre :as log]
+            [re-frame.db :as db]
+            ["react-virtuoso" :refer [Virtuoso]]
+            [promesa.core :as p]
+            [reagent.core :as r]
+            ["generated-compat" :as sdk :refer [MessageType]]
+            [reagent.dom.client :as rdom]))
+
+(defn message-input []
+  (let [draft (r/atom "")]
+    (fn []
+      (let [active-id @(re-frame/subscribe [:rooms/active-id])]
+        [:div.timeline-input-container
+         [:input.timeline-input
+          {:type "text"
+           :placeholder (if active-id "Message..." "Select a room")
+           :disabled (nil? active-id)
+           :value @draft
+           :on-change #(reset! draft (.. % -target -value))
+           :on-key-down (fn [e]
+                          (when (and (= (.-key e) "Enter")
+                                     (not (clojure.string/blank? @draft))
+                                     active-id)
+                            (re-frame/dispatch [:sdk/send-message active-id @draft])
+                            (reset! draft "")))}]]))))
+
+(re-frame/reg-event-fx
+ :sdk/send-message
+ (fn [{:keys [db]} [_ room-id text]]
+   (let [timeline (get-in db [:timeline-subs room-id :timeline])]
+     (if-not timeline
+       (js/console.error "Cannot send: Timeline not booted for" room-id)
+       (try
+         (let [text-payload #js {:content #js {:body text
+                                               :formatted js/undefined}}
+               msg-type     (.new (.-Text MessageType) text-payload)
+               event        (.createMessageContent timeline msg-type)]
+           (-> (.send timeline event)
+               (.then #(js/console.log "Message sent!"))
+               (.catch #(js/console.error "Failed to send message:" %))))
+         (catch :default e
+           (js/console.error "FFI Constructor panic:" e)))))
+   {}))
