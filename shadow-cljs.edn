@@ -4,9 +4,15 @@
         :npm-deps false
         :build-hooks [[build-hooks/generate-lang-map]
                       [build-hooks/tangle-hook]]
-        :output-dir "resources/public/js"
-        :modules {:main {:entries [client.core]
-                         :exports {init client.core/init}}}
+        :output-dir "resources/public"
+        :asset-path "/"
+        :modules {:base {:entries []}
+                  :main {:entries [client.core]
+                         :depends-on #{:base}
+                         :exports {init client.core/init}}
+                  :sw   {:entries [service-worker]
+                         :web-worker true
+                         :depends-on #{:base}}}
         :js-options
         {:js-provider :import
          :esm-js-shim false
