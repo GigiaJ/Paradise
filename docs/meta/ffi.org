@@ -1,0 +1,31 @@
+
+* Foreign Function Interface
+
+Obviously we don't have a foreign function interface with Rust, but instead we have a set of bindings that allows us to interface
+with the Rust SDK through a WASM and the FFI bindings exposed. These bindings are initially in Typescript when we generate them,
+but with Babel we then convert them to Javascript.
+
+*** Debugging the FFI in the browser
+There are occasions where you want to see what exactly is in the browser and visualize the FFI function that way.
+As we use Shadow-CLJS this can be done by referencing the shadow-cljs esm import for the sdk.
+
+
+For example if we wanted to quickly peek the sendFile method in the Timeline prototype.
+#+begin_src javascript
+console.log(shadow.esm.esm_import$generated_compat.Timeline.prototype.sendFile.toString())
+#+end_src
+
+Which in the current version of the sdk we're working against outputs
+#+begin_src javascript
+  function sendFile(params,fileInfo)
+  {var _this954=this;
+   return FfiConverterTypeSendAttachmentJoinHandle.lift(uniffiCaller.rustCallWithError(
+       /*liftError:*/
+       FfiConverterTypeRoomError.lift.bind(FfiConverterTypeRoomError),
+       /*caller:*/
+       function(callStatus){
+           return nativeModule().ubrn_uniffi_matrix_sdk_ffi_fn_method_timeline_send_file(uniffiTypeTimelineObjectFactory.clonePointer(_this954),
+                                                                                         FfiConverterTypeUploadParameters.lower(params),
+                                                                                         FfiConverterTypeFileInfo.lower(fileInfo),callStatus);},
+       /*liftString:*/FfiConverterString.lift));}
+#+end_src
