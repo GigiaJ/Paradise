@@ -1,0 +1,165 @@
+
+*** The Service Worker
+
+So a web-based matrix client usually follows the pattern of using service workers
+to provide long-lived functionality. This includes background behavior when we
+say use it even as a native app or a PWA on phones. It is through the service
+worker that we can asynchronously fetch images from the server or deliver push notifications.
+It is safe to say that the service worker is a very important component to
+most web applications, not just web-based Matrix clients.
+#+begin_src clojurescript :tangle ../src/service_worker.cljs
+(ns service-worker
+  (:require [clojure.string :as str]
+            [promesa.core :as p]))
+#+end_src
+
+#+begin_src clojurescript :tangle ../src/service_worker.cljs
+(defonce auth-token (atom nil))
+#+end_src
+
+The message event is how the client communicates with the service worker.
+It passes 'messages' to the service worker and the service worker passes
+'messages' to the client. It is not too dissimilar to postMessage for
+communicating with iframes.
+
+https://developer.mozilla.org/en-US/docs/Web/API/Window/postMessage
+
+
+#+begin_src clojurescript :tangle ../src/service_worker.cljs
+(defonce auth-token (atom nil))
+
+(defonce token-resolver (atom nil))
+
+(defonce token-promise
+  (js/Promise. (fn [resolve]
+                 (reset! token-resolver resolve))))
+
+(.addEventListener js/self "message"
+  (fn [event]
+    (let [data (.-data event)]
+      (when (= (.-type data) "SET_TOKEN")
+        (when @token-resolver (@token-resolver (.-token data)))
+        (js/console.log "SW: Token updated")))))
+#+end_src
+
+
+The fetch event is vital for the client to asynchronously 'fetch' images from a
+server so that we may allow the client to worry simply on the elements it can
+render immediately.
+
+We only want to bother fetching authenticated media with the expected
+media endpoints. We validate the URL to ensure we don't leak info unexpectedly.
+
+Some important readings for this:
+https://spec.matrix.org/latest/client-server-api/#matrix-content-mxc-uris
+
+https://developer.mozilla.org/en-US/docs/Web/API/ServiceWorkerGlobalScope/fetch_event
+
+We also want to define a cache so that users don't bother endlessly re-fetching assets on reloads
+#+begin_src clojurescript :tangle ../src/service_worker.cljs
+(def cache-name "matrix-media-v1")
+
+(js/self.addEventListener "fetch"
+  (fn [event]
+    (let [request (.-request event)
+          url     (js/URL. (.-url request))
+          path    (.-pathname url)]
+      (cond
+        (or (str/includes? path "/_matrix/client/v1/media/")
+            (str/includes? path "/_matrix/media/v3/"))
+
+        (.respondWith event
+          (p/let [cache    (js/caches.open cache-name)
+                  cached   (.match cache (.-url request))]
+            (if cached
+              cached
+              (p/let
+                  [token (if @auth-token
+                @auth-token
+                (p/race [token-promise (p/delay 2000 nil)]))
+        _ (js/console.log "SW: Proceeding with token:" (some? token))
+        headers (js/Headers. (.-headers request))
+        _ (when token (.set headers "Authorization" (str "Bearer " token)))
+        resp (js/fetch (.-url request) #js {:headers headers :mode "cors"})]
+                (when (.-ok resp)
+                  (.put cache (.-url request) (.clone resp)))
+                resp))))
+
+        :else nil))))
+#+end_src
+
+The install event is the first event in the lifecycle of a service worker.
+Once this goes off the service worker starts to come alive.
+#+begin_src clojurescript :tangle ../src/service_worker.cljs
+(js/self.addEventListener "install"
+  (fn [event]
+    (.skipWaiting js/self)))
+#+end_src
+
+So the service worker needs to be 'activated' and then once activated we want to
+immediately claim all clients so we can start fetching for them.
+#+begin_src clojurescript :tangle ../src/service_worker.cljs
+(js/self.addEventListener "activate"
+  (fn [event]
+    (.waitUntil event (.clients.claim js/self))))
+#+end_src
+
+Shadow-cljs seems to be a bit opinionated in how it generates the service worker file.
+That and the documentation for web-workers isn't amazingly clear, nonetheless it does
+provide enough info continue anyway.
+https://shadow-cljs.github.io/docs/UsersGuide.html#_web_workers
+/In fact the documentation here states it'd generate a file named worker.js yet, we're getting a
+sw.js/
+
+Not a large issue, but one I felt needed to be clarified to avoid potential confusion.
+
+Now below we have our actual service worker handler. This is where we'll define any service worker
+logic that is to be used from the main application itself.
+#+begin_src clojurescript :tangle ../src/service_worker_handler.cljs
+(ns service-worker-handler
+  (:require
+            [taoensso.timbre :as log]
+            [re-frame.db :as db]
+            [re-frame.core :as re-frame]))
+#+end_src
+
+The major functionality we need is to register the service worker itself.
+We do so while passing off the session token so that the service worker
+may immediately begin to render our images.
+#+begin_src clojurescript :tangle ../src/service_worker_handler.cljs
+(defn register-sw! [token]
+  (when (exists? js/navigator.serviceWorker)
+    (log/debug "Attaching Service Worker")
+    (-> (js/navigator.serviceWorker.register "/sw.js" #js {:type "module"})
+        (.then (fn [reg]
+                 (when (.-waiting reg)
+                   (.postMessage (.-waiting reg) #js {:type "SKIP_WAITING"}))
+                 (when (and (.-controller js/navigator.serviceWorker) token)
+                   (re-frame/dispatch [:auth/sync-sw-only token])))))))
+#+end_src
+
+
+Now, since we're using reframe we want to ensure we're providing our rendering
+implementation an easy way to inform updates to the service worker.
+We may wish to break this apart a bit for re-usability, but for now this will do.
+#+begin_src clojurescript :tangle ../src/service_worker_handler.cljs
+(re-frame/reg-event-fx
+ :auth/sync-sw-only
+ (fn [_ [_ token]]
+   {:sync-sw-auth token}))
+
+(re-frame/reg-event-fx
+ :auth/save-session
+ (fn [{:keys [db]} [_ {:keys [access-token user-id]}]]
+   {:db (assoc db :access-token access-token :user-id user-id)
+    :sync-sw-auth access-token}))
+
+(re-frame/reg-fx
+ :sync-sw-auth
+ (fn [token]
+   (if-let [sw-controller (.-controller js/navigator.serviceWorker)]
+     (do
+       (.postMessage sw-controller #js {:type "SET_TOKEN" :token token})
+       (js/console.log "re-frame: Token synced to Service Worker"))
+     (js/console.warn "re-frame: SW controller not found, token not synced"))))
+#+end_src
