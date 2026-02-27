@@ -8,9 +8,7 @@
 
 
 (defn apply-matrix-diffs [current-items updates parse-fn]
-  (let [initial-items (vec (or current-items []))
-        _ (js/console.log current-items)
-        _ (js/console.log updates)]
+  (let [initial-items (vec (or current-items []))]
     (p/loop [i 0
              items initial-items]
       (if (< i (.-length updates))
