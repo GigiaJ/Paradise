@@ -7,6 +7,8 @@
    [reagent.dom.client :as rdom]
    [spaces.bar :refer [spaces-sidebar]]
    [timeline.base :refer [timeline]]
+   [auth.events :refer [login-screen]]
+   [client.login :refer [bootstrap!]]
    [room.room-list :refer [room-list]]
    ))
 
@@ -24,19 +26,60 @@
   {:spaces {}
    :rooms  {}
    :active-space-id nil
-   :active-room-id  nil})
+   :active-room-id  nil
+   :auth-status :checking
+   :login-error nil
+   :client nil
+   })
 
 (re-frame/reg-event-db
  :initialize-db
  (fn [_ _]
    default-db))
 
+(re-frame/reg-sub
+ :auth/status
+ (fn [db _] (:auth-status db)))
+
+(re-frame/reg-sub
+ :auth/error
+ (fn [db _] (:login-error db)))
+
+(re-frame/reg-event-fx
+ :app/bootstrap
+ (fn [{:keys [db]} _]
+   (do
+     (log/debug "Bootstrapping")
+     (bootstrap!
+    (fn [client session-data]
+      (if client
+             (re-frame/dispatch [:auth/login-success client session-data])
+        #_(p/let [_ (re-frame/dispatch-sync [:sdk/set-client raw-client])
+                _ (login/start-sync! raw-client)
+                _ (register-sw! (.-accessToken (.-session session-json)))
+
+                ]
+          nil)
+        (re-frame/dispatch [:auth/login-failure nil])
+        ))))
+   {:db (assoc db :auth-status :checking)}))
+
+
 (defn main-layout []
-  [:div.app-root
-   [spaces-sidebar]
-   [room-list]
-   [timeline]
-   ])
+  (let [auth-status @(re-frame/subscribe [:auth/status])
+        _ (log/debug auth-status)]
+    (case auth-status
+      :checking
+      [:div.flex.h-screen.items-center.justify-center.bg-gray-900.text-white
+       "Booting Matrix SDK..."]
+      (:logged-out :authenticating)
+      [login-screen]
+      :logged-in
+      [:div.app-root
+       [spaces-sidebar]
+       [room-list]
+       [timeline]]
+      [:div "Unknown State"])))
 
 (defonce root (atom nil))
 
@@ -49,6 +92,7 @@
 
 (defn ^:export init []
   (re-frame/dispatch-sync [:initialize-db])
+  (re-frame/dispatch [:app/bootstrap])
   (mount-root))
 
 (defn ^:after-load re-render []
