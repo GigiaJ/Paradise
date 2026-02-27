@@ -6,10 +6,8 @@
 
 (defonce auth-token (atom nil))
 
-;; This holds the 'resolve' function for our promise
 (defonce token-resolver (atom nil))
 
-;; This is the promise itself that fetch will wait on
 (defonce token-promise
   (js/Promise. (fn [resolve]
                  (reset! token-resolver resolve))))
