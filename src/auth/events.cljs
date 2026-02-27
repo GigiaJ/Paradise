@@ -4,6 +4,7 @@
             [reagent.dom.client :as rdom]
             [promesa.core :as p]
             [client.login :as login]
+            [service-worker-handler :refer [register-sw!]]
             [taoensso.timbre :as log]))
 
 (re-frame/reg-sub
@@ -47,8 +48,10 @@
  (fn [{:keys [db]} [_ client session-data]]
    (login/start-sync! client)
    (when session-data
-     ;;(register-sw! (.-accessToken (.-session session-data)))
-     (log/debug "Session restored!"))
+     (log/debug session-data)
+     (register-sw! (.-accessToken (.-session session-data)))
+     (log/debug "Session restored!")
+     )
    {:db (assoc db :auth-status :logged-in
                   :client client)}))
 
