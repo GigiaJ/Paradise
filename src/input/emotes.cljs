@@ -63,7 +63,7 @@
  (fn [db _]
    (get db :emoji/available-packs {})))
 
- (defn emoji-sticker-board [{:keys [on-insert-emoji on-send-sticker]}]
+(defn emoji-sticker-board [{:keys [on-insert-emoji on-send-sticker]}]
   (re-frame/dispatch [:sdk/fetch-all-emotes])
   (let [selected-pack-id (r/atom nil)]
     (fn [{:keys [on-insert-emoji on-send-sticker]}]
