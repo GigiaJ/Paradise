@@ -75,6 +75,15 @@
          (js/console.error "Draft Reification Failure:" e)))
      {})))
 
+(re-frame/reg-event-db
+ :composer/clear-after-submit
+ (fn [db [_ room-id]]
+   (-> db
+       (assoc-in [:drafts room-id :attachments] [])
+       (assoc-in [:composer room-id] {:text ""
+                                      :html ""
+                                      :loaded-text ""
+                                      :uploading? false}))))
 
 (re-frame/reg-event-fx
  :composer/persist-draft
