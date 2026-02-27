@@ -4,16 +4,88 @@
             [taoensso.timbre :as log]
             [re-frame.db :as db]
             ["react-virtuoso" :refer [Virtuoso]]
-            [promesa.core :as p]
             [reagent.core :as r]
             [reagent.dom.client :as rdom]
+            [utils.helpers :refer [mxc->url]]
             [input.base :refer [message-input]]
             [room.room-summary :refer [build-room-summary]]
             [client.diff-handler :refer [apply-matrix-diffs]]))
 
+(defn reify-item [ffi-item]
+  (let [raw-id (.uniqueId ffi-item)
+        id-str (if raw-id (or (.-id raw-id) raw-id) (str "virt-" (hash ffi-item)))
+        event (.asEvent ffi-item)
+        virtual (.asVirtual ffi-item)]
+    (cond
+      event
+      (let [sender-profile (.-senderProfile event)
+            inner-profile  (when sender-profile (.-inner sender-profile))
+            sender         (or (when inner-profile (.-displayName inner-profile))
+                               (.-sender event))
+            content        (.-content event)
+            content-tag    (.-tag content)
+            content-inner  (.-inner content)
+            reactions (try
+                        (let [raw-rx (.reactions ffi-item)]
+                          (into {} (for [k (js/Object.keys raw-rx)]
+                                     [k (.-count (get raw-rx k))])))
+                        (catch :default _ {}))
+            read-by (try
+                      (mapv #(.-sender %) (.readReceipts ffi-item))
+                      (catch :default _ []))]
+
+        {:id          id-str
+         :type        :event
+         :sender      sender
+         :ts          (js/Number (.-timestamp event))
+         :reactions    reactions
+         :read-by      read-by
+         :content-tag content-tag
+         :content     (case content-tag
+                        "MsgLike"
+                        (let [msg (.-content content-inner)
+                              kind (.-kind msg)
+                              kind-tag (.-tag kind)
+                              kind-inner (.-inner kind)]
+                          {:tag kind-tag
+                           :inner (case kind-tag
+                                    "Message"
+                                    (let [actual (.-content kind-inner)
+                                          m-type (.-msgType actual)
+                                          m-tag  (.-tag m-type)
+                                          m-inner (.-inner m-type)
+                                          m-content-obj (.-content m-inner)]
+                                      {:tag   m-tag
+                                       :content (case m-tag
+                                                  ("Text" "Emote" "Notice") {:body (.-body m-content-obj)}
+                                                  ("Image" "Video" "Sticker") {:source (.-source m-content-obj)
+                                                                               :info   (when-let [info (.-info m-content-obj)]
+                                                                                         {:w (some-> info .-width js/Number)
+                                                                                          :h (some-> info .-height js/Number)
+                                                                                          :mimetype (.-mimetype info)})}
+                                                  {:unsupported true})})
+                                    "Sticker"
+                                    {:source (.-source kind-inner)
+                                     :info (when-let [info (.-info kind-inner)]
+                                             {:w (some-> info .-width js/Number)
+                                              :h (some-> info .-height js/Number)})}
+                                    nil)})
+                        "RoomMembership" {:change (some-> content-inner .-change .-name)}
+                        "ProfileChange"  {:id id-str}
+                        nil)})
+
+      virtual
+      {:id   id-str
+       :type :virtual
+       :tag  (.-tag virtual)
+       :ts   (some-> virtual .-inner .-ts js/Number)}
+
+      :else
+      {:id id-str :type :unknown})))
+
 (defn apply-timeline-diffs! [room-id updates]
   (let [current-events (get-in @re-frame.db/app-db [:timeline room-id] [])]
-    (-> (apply-matrix-diffs current-events updates identity)
+    (-> (apply-matrix-diffs current-events updates reify-item)
         (.then (fn [next-events]
                  (re-frame/dispatch [:sdk/update-timeline room-id next-events])))
         (.catch #(js/console.error "Timeline Diff Panic:" %)))))
@@ -67,7 +139,6 @@
               :tl-handle tl-handle
               :pag-handle pag-handle})))
 
-
 (re-frame/reg-sub
  :timeline/current-events
  (fn [db _]
@@ -77,100 +148,187 @@
 (re-frame/reg-event-fx
  :sdk/back-paginate
  (fn [{:keys [db]} [_ room-id]]
-   (when-let [timeline (get-in db [:timeline-subs room-id :timeline])]
-     (.paginateBackwards timeline 20))
-   {}))
+   (let [loading? (get-in db [:timeline/loading-more? room-id])
+         status   (get-in db [:timeline-pagination room-id])]
+     (if (and room-id
+              (not loading?)
+              (not= status "Paginating")
+              (not= status "TimelineStartReached"))
+       (when-let [timeline (get-in db [:timeline-subs room-id :timeline])]
+         (-> (.paginateBackwards timeline 50)
+             (.then #(re-frame/dispatch [:sdk/pagination-complete room-id])))
+         {:db (assoc-in db [:timeline/loading-more? room-id] true)})
+       {}))))
 
+(re-frame/reg-event-db
+ :sdk/pagination-complete
+ (fn [db [_ room-id]]
+   (let [timeline-path [:timeline-pagination room-id]
+         ]
+     (-> db
+         (assoc-in [:timeline/loading-more? room-id] false)
+         ))))
+
+(re-frame/reg-sub
+ :timeline/loading-more?
+ (fn [db [_ room-id]]
+   (get-in db [:timeline/loading-more? room-id] false)))
+
+(defn text-message [content]
+  (let [body (.-body content)]
+    [:span.body body]))
+
+(defn async-media-wrapper [content {:keys [class default-ratio]} render-fn]
+  (r/with-let [client       @(re-frame/subscribe [:sdk/client])
+               media-source (:source content)
+               info         (:info content)
+               w            (:w info)
+               h            (:h info)
+               style        (if (and w h)
+                              {:aspect-ratio (str w " / " h)}
+                              {:aspect-ratio (str default-ratio)})
+               !blob-url    (r/atom nil)
+               _ (when (and client media-source)
+                   (p/let [bytes (.getMediaContent client media-source)
+                           blob  (js/Blob. #js [bytes] #js {:type (or (:mimetype info) "image/png")})
+                           url   (js/URL.createObjectURL blob)]
+                     (reset! !blob-url url)))]
+    (let [url @!blob-url]
+      [:div.media-container {:class class :style style}
+       (if url
+         (render-fn url (or (:caption content) (:filename content) "media") "media-content-absolute")
+         [:div.message-image-placeholder
+          [:div.spinner]])])
+    (finally
+      (when-let [url @!blob-url]
+        (js/URL.revokeObjectURL url)))))
+
+(defn image-message [content]
+  (async-media-wrapper content {:class "media-image" :default-ratio 1.33}
+    (fn [url alt class-name]
+      [:img {:src url :alt alt :class class-name :loading "lazy"}])))
+
+(defn video-message [content]
+  (async-media-wrapper content {:class "media-video" :default-ratio 1.77}
+    (fn [url _ class-name]
+      [:video {:src url :controls true :class class-name}])))
+
+(defn sticker-message [content]
+  (async-media-wrapper content {:class "media-sticker" :default-ratio 1.0}
+    (fn [url alt class-name]
+      [:img {:src url :alt alt :class class-name :loading "lazy"}])))
+
+(defn render-message-content [msg-type-tag content-map]
+  (case msg-type-tag
+    "Text"    [:span.body (:body content-map)]
+    "Image"   [image-message content-map]
+    "Video"   [video-message content-map]
+    "Sticker" [sticker-message content-map]i
+    [:span.body (str "Unsupported message type: " msg-type-tag)]))
+
+(defn system-event-view [icon text]
+  [:div.timeline-system-event
+   [:span.system-icon icon]
+   [:span.system-text text]])
 
 (defn event-tile [item]
-  (let [event-obj (.asEvent item)]
-    (if-not event-obj
-      [:div.virtual-item
-       {:style {:text-align "center" :color "#6c7086" :font-size "0.8em" :margin "8px 0"}}
-       "--- Timeline Separator ---"]
-      (let [;; Safe drilling for display name, fallback to raw sender ID
-            sender (or (.. event-obj -senderProfile -inner -displayName)
-                       (.-sender event-obj))
+  (let [{:keys [sender content-tag content type reactions read-by]} item]
+    (if (= type :virtual)
+      [system-event-view "-" "Timeline Separator"]
+      [:div.event-tile-container
+       (cond
+         (= content-tag "MsgLike")
+         (let [{:keys [tag inner]} content]
+           (cond
+             (= tag "Sticker")
+             [:div.message
+              [:span.sender sender]
+              [render-message-content "Sticker" inner]]
 
-            content-enum  (.-content event-obj)
-            content-tag   (when content-enum (.-tag content-enum))
-            content-inner (when content-enum (.-inner content-enum))]
-        (cond
-          (= content-tag "MsgLike")
-          (let [msg-content    (.-content content-inner)
-                msg-kind-tag   (some-> msg-content .-kind .-tag)
-                msg-kind-inner (some-> msg-content .-kind .-inner)]
-            (cond
-              (= msg-kind-tag "Redacted")
-              [:div.message [:span.sender sender] " deleted a message."]
+             (= tag "Redacted")
+             [system-event-view "[x]" (str sender " deleted a message.")]
 
-              (= msg-kind-tag "UnableToDecrypt")
-              [:div.message [:span.sender sender] " UTD (Unable to decrypt)"]
+             (= tag "UnableToDecrypt")
+             [system-event-view "[?]" (str "Unable to decrypt message from " sender)]
 
-              (= msg-kind-tag "Message")
-              (let [actual-content (.-content msg-kind-inner)
-                    msg-type-enum  (.-msgType actual-content)
-                    msg-type-tag   (.-tag msg-type-enum)
-                    msg-type-inner (.-inner msg-type-enum)
-                    body           (if (= msg-type-tag "Text")
-                                     (.. msg-type-inner -content -body)
-                                     (str "Sent a " msg-type-tag))]
-                [:div.message 
-                 [:span.sender {:style {:font-weight "bold" :margin-right "8px"}} sender] 
-                 [:span.body body]])
+             (= tag "Message")
+             (let [{m-tag :tag m-content :content} inner]
+               [:div.message
+                [:span.sender sender]
+                [render-message-content m-tag m-content]])
 
-              :else
-              [:div.message "Unknown message kind"]))
+             :else
+             [system-event-view "[!]" (str "Unknown message kind: " tag)]))
 
-          (= content-tag "RoomMembership")
-          [:div.state-event 
-           {:style {:color "#89b4fa" :font-size "0.85em" :margin "4px 0"}}
-           (str sender " membership changed")]
+         (= content-tag "RoomMembership")
+         [system-event-view "->" (str sender " membership changed.")]
 
-          (= content-tag "ProfileChange")
-          [:div.state-event 
-           {:style {:color "#89b4fa" :font-size "0.85em" :margin "4px 0"}}
-           (str sender " changed their profile")]
+         (= content-tag "ProfileChange")
+         [system-event-view "@" (str sender " changed their profile.")]
 
-          :else
-          [:div.message 
-           [:span.sender sender] 
-           [:span.body (str " Unknown event type: " content-tag)]])))))
+         :else
+         [system-event-view "[!]" (str "Unknown event type: " content-tag)])
+
+       (when (or (seq reactions) (seq read-by))
+         [:div.event-metadata
+          (when (seq reactions)
+            [:div.reactions-row
+             (for [[emoji count] reactions]
+               ^{:key emoji} [:span.reaction-pill (str emoji " " count)])])
+          (when (seq read-by)
+            [:div.read-receipts-row
+             [:span.receipt-count (str "✓ " (count read-by))]])])])))
+
+
 
 
 (defn virtualized-timeline [events room-id]
-  (let [event-array (to-array events)]
-    [:> Virtuoso
-     {:style {:height "100%" :width "100%"}
-      :data event-array
-      :alignToBottom true
-      :followOutput true
-      :startReached #(re-frame/dispatch [:sdk/back-paginate room-id])
-      :computeItemKey (fn [index item]
-                        (let [id (try (.uniqueIdentifier item) (catch :default _ nil))]
-                          (if id id index)))
-      :itemContent (fn [index item]
-                     (r/as-element
-                      (let [id (try (.uniqueIdentifier item) (catch :default _ nil))]
-                        [:li.timeline-item
-                         {:key id :style {:list-style "none" :margin-bottom "4px"}}
-                         [event-tile item]])))}]))
-
+  (r/with-let [!anchor-id (r/atom nil)
+               !last-stable-idx (r/atom 10000)]
+    (let [event-array (to-array events)
+          get-id (fn [item] (:id item))
+          _ (when (and (nil? @!anchor-id) (pos? (count event-array)))
+              (let [id (get-id (first event-array))]
+                (when (string? id)
+                  (reset! !anchor-id id))))
+          current-anchor @!anchor-id
+          found-index (when current-anchor
+                        (let [idx (.findIndex event-array #(= (get-id %) current-anchor))]
+                          (if (>= idx 0) idx nil)))
+          first-index (if found-index
+                        (let [new-idx (- 10000 found-index)]
+                          (reset! !last-stable-idx new-idx)
+                          new-idx)
+                        @!last-stable-idx)]
+      [:> Virtuoso
+       {:key room-id
+        :data event-array
+        :firstItemIndex first-index
+        :alignToBottom true
+        :followOutput (fn [at-bottom] (if at-bottom "smooth" false))
+        :startReached #(re-frame/dispatch [:sdk/back-paginate room-id])
+        :computeItemKey (fn [index item] (:id item))
+        :itemContent (fn [index item]
+                       (r/as-element
+                        [:li.timeline-item {:key (:id item)}
+                         [event-tile item]]))}])))
 
 (defn timeline []
   (let [active-id @(re-frame/subscribe [:rooms/active-id])
         room-meta @(re-frame/subscribe [:rooms/active-metadata])
-        events @(re-frame/subscribe [:timeline/current-events])]
+        events    @(re-frame/subscribe [:timeline/current-events])]
     [:div.timeline-container
-     {:style {:display "flex" :flex-direction "column" :height "100%" :flex 1}}
      (if-not active-id
        [:div.timeline-empty "Select a room to start chatting."]
        (let [display-name (or (.-name room-meta) active-id)]
          [:<>
           [:div.timeline-header
-           {:style {:flex-shrink 0 :padding "16px" :border-bottom "1px solid #313244"}}
            [:h2.timeline-header-title display-name]]
-          [:div.timeline-messages
-           {:style {:flex 1 :min-height 0}}
-           [virtualized-timeline events active-id]]
+          (let [loading? @(re-frame/subscribe [:timeline/loading-more? active-id])]
+            [:div.timeline-messages
+             (when loading?
+               ^{:key "pagination-spinner"}
+               [:div.spinner-container [:div.spinner]])
+             ^{:key (str "virtuoso-wrapper-" active-id)}
+             [virtualized-timeline events active-id]])
           [message-input]]))]))
