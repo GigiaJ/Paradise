@@ -197,31 +197,17 @@
             loaded-text @(re-frame/subscribe [:composer/loaded-text active-id])]
         [:div.timeline-input-outer {:style {:position "relative"}}
          (when @!picker-open?
-           [:div.picker-popover {:style {:position "absolute"
-                                         :bottom "100%"
-                                         :right "0"
-                                         :z-index 100
-                                         :margin-bottom "10px"
-                                         :background "var(--bg-color, #fff)"
-                                         :border "1px solid #ccc"
-                                         :border-radius "8px"
-                                         :box-shadow "0 4px 12px rgba(0,0,0,0.15)"
-                                         :padding "10px"
-                                         :width "300px"
-                                         :max-height "400px"
-                                         :overflow-y "auto"}}
-            [emoji-sticker-board
-             {:on-send-sticker
-              (fn [mxc alt-text info]
-                (re-frame/dispatch [:sdk/send-sticker active-id mxc alt-text info])
-                (reset! !picker-open? false))
-              :on-insert-emoji
-              (fn [shortcode mxc]
-                ;; TODO: We need to tell Tiptap to insert this
-                (js/console.log "Need to insert into Tiptap:" shortcode mxc)
-                (reset! !picker-open? false))}]])
-
-         [:div.timeline-input-wrapper {:style {:display "flex" :align-items "flex-end" :gap "10px"}}
+           [emoji-sticker-board
+            {:on-send-sticker
+             (fn [mxc alt-text info]
+               (re-frame/dispatch [:sdk/send-sticker active-id mxc alt-text info])
+               (reset! !picker-open? false))
+             :on-insert-emoji
+             (fn [shortcode]
+               ;; TODO: We need to tell Tiptap to insert this
+               (js/console.log "Need to insert into Tiptap:" shortcode)
+               (reset! !picker-open? false))}])
+         [:div.timeline-input-wrapper {:style {:display "flex" :flex-direction "column"}}
           (when (seq attachments)
             [:div.composer-attachments {:style {:display "flex" :flex-direction "row" :overflow-x "auto"
                                                 :gap "10px" :padding "10px" :background "rgba(0,0,0,0.2)"}}
@@ -230,28 +216,30 @@
                              ^{:key (str "att-" idx)}
                              [attachment-preview active-id att idx])
                            attachments))])
-
           (when uploading?
             [:div.upload-indicator
              [:span.upload-text "Uploading file..."]
              [:div.upload-progress-bar [:div.upload-progress-fill]]])
-
-          [:div {:style {:flex-grow 1}}
-           [:> tiptap-component
-            #js {:activeId active-id
-                 :loadedText loaded-text
-                 :onChange (fn [text html]
-                             (re-frame/dispatch [:composer/on-change active-id text html]))
-                 :onSend (fn [text html]
-                           (re-frame/dispatch [:composer/submit active-id text html attachments]))
-                 :onFiles (fn [files]
-                            (let [file-array (js/Array.from files)]
-                              (re-frame/dispatch [:sdk/handle-file-drop active-id file-array])))}]]
-          [:button.emoji-toggle-btn
-           {:on-click #(swap! !picker-open? not)
-            :style {:padding "10px"
-                    :background "transparent"
-                    :border "none"
-                    :cursor "pointer"
-                    :font-size "1.2rem"}}
-           "😀"]]]))))
+          [:div.input-row {:style {:display "flex" :flex-direction "row" :align-items "center" :width "100%"}}
+           [:div.editor-container {:style {:flex-grow 1 :min-width 0 :padding "8px 12px"}}
+            [:> tiptap-component
+             #js {:activeId active-id
+                  :loadedText loaded-text
+                  :onChange (fn [text html]
+                              (re-frame/dispatch [:composer/on-change active-id text html]))
+                  :onSend (fn [text html]
+                            (re-frame/dispatch [:composer/submit active-id text html attachments]))
+                  :onFiles (fn [files]
+                             (let [file-array (js/Array.from files)]
+                               (re-frame/dispatch [:sdk/handle-file-drop active-id file-array])))}]]
+           [:button.emoji-toggle-btn
+            {:on-click (fn [e]
+                         (.stopPropagation e)
+                         (swap! !picker-open? not))
+             :style {:padding "10px 16px"
+                     :background "transparent"
+                     :border "none"
+                     :cursor "pointer"
+                     :font-size "1.4rem"
+                     :flex-shrink 0}}
+            "😀"]]]]))))
