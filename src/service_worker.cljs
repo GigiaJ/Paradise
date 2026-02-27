@@ -5,9 +5,7 @@
 (defonce auth-token (atom nil))
 
 (defonce auth-token (atom nil))
-
 (defonce token-resolver (atom nil))
-
 (defonce token-promise
   (js/Promise. (fn [resolve]
                  (reset! token-resolver resolve))))
