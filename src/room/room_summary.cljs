@@ -2,17 +2,9 @@
   (:require [promesa.core :as p]
             [clojure.string :as str]
             [taoensso.timbre :as log]
-            ;; We need to add RoomListItemViewModel
+            [utils.helpers :refer [mxc->url]]
             )
   (:require-macros [utils.macros :refer [ocall oget]]))
-
-(defn mxc->url [mxc-url]
-  (when mxc-url
-    (str (clojure.string/replace mxc-url #"^mxc://"
-                               (str (or js/process.env.MATRIX_HOMESERVER "https://matrix.org")
-                                 "/_matrix/media/v3/thumbnail/"))
-         "?width=48&height=48")
-         ))
 
 (defn build-room-summary [room room-info latest-event]
   (let [
