@@ -3,24 +3,10 @@
   (:require [promesa.core :as p]
             [clojure.string :as str]
             [taoensso.timbre :as log]
-            ;; We need to add RoomListItemViewModel
+            [utils.helpers :refer [mxc->url]]
             )
   (:require-macros [utils.macros :refer [ocall oget]]))
 #+end_src
-
-
-This just provides a mechanism to convert mxc urls to usable urls
-according to the Matrix spec
-#+begin_src clojurescript :tangle ../../src/room/room_summary.cljs
-(defn mxc->url [mxc-url]
-  (when mxc-url
-    (str (clojure.string/replace mxc-url #"^mxc://"
-                               (str (or js/process.env.MATRIX_HOMESERVER "https://matrix.org")
-                                 "/_matrix/media/v3/thumbnail/"))
-         "?width=48&height=48")
-         ))
-#+end_src
-
 
 This defines the internals we expect from a Room
 If a room gains some new feature or functionality it would be added here
