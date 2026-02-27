@@ -27,9 +27,7 @@ https://developer.mozilla.org/en-US/docs/Web/API/Window/postMessage
 
 #+begin_src clojurescript :tangle ../src/service_worker.cljs
 (defonce auth-token (atom nil))
-
 (defonce token-resolver (atom nil))
-
 (defonce token-promise
   (js/Promise. (fn [resolve]
                  (reset! token-resolver resolve))))
