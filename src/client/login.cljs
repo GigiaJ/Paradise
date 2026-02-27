@@ -86,8 +86,10 @@
               client (when data?
                        (restore-client! (.-session data?)
                                         (.-passphrase data?)
-                                        (.-storeId data?)))]
-        (when client (on-complete client)))
+                                        (.-storeId data?)))
+              _ (log/debug data?)
+              ]
+        (on-complete client data?))
       (p/catch (fn [e]
                  (log/error "Bootstrap/Restore failed:" e)
                  (on-complete nil)))))
