@@ -106,10 +106,10 @@
      (if (= current-room room-id)
        {}
        {:db (assoc db :active-room-id room-id)
-        :dispatch-n (if current-room
-                      [[:sdk/cleanup-timeline current-room]
-                       [:sdk/boot-timeline room-id]]
-                      [[:sdk/boot-timeline room-id]])}))))
+        :dispatch-n (remove nil?
+                            [(when current-room [:sdk/cleanup-timeline current-room])
+                             [:sdk/boot-timeline room-id]
+                             [:composer/load-draft room-id]])}))))
 
 (re-frame/reg-event-db
  :sdk/hydrate-rooms
