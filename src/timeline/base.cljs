@@ -6,7 +6,7 @@
             ["react-virtuoso" :refer [Virtuoso]]
             [reagent.core :as r]
             [reagent.dom.client :as rdom]
-            [utils.helpers :refer [mxc->url]]
+            [utils.helpers :refer [mxc->url sanitize-custom-html]]
             [input.base :refer [message-input]]
             [room.room-summary :refer [build-room-summary]]
             [client.diff-handler :refer [apply-matrix-diffs]]))
@@ -54,15 +54,27 @@
                                           m-type (.-msgType actual)
                                           m-tag  (.-tag m-type)
                                           m-inner (.-inner m-type)
-                                          m-content-obj (.-content m-inner)]
+                                          m-content-obj (.-content m-inner)
+                                          _ (js/console.log m-tag)
+                                          _ (js/console.log m-content-obj)]
                                       {:tag   m-tag
                                        :content (case m-tag
-                                                  ("Text" "Emote" "Notice") {:body (.-body m-content-obj)}
-                                                  ("Image" "Video" "Sticker") {:source (.-source m-content-obj)
-                                                                               :info   (when-let [info (.-info m-content-obj)]
-                                                                                         {:w (some-> info .-width js/Number)
-                                                                                          :h (some-> info .-height js/Number)
-                                                                                          :mimetype (.-mimetype info)})}
+                                                  ("Text" "Emote" "Notice")
+                                                  {:body (.-body m-content-obj)
+                                                   :html (some-> m-content-obj .-formatted .-body)}
+                                                  ("Image" "Video" "Audio" "File" "Sticker")
+                                                  (let [formatted (.-formattedCaption m-content-obj)]
+                                                    {:tag      m-tag
+                                                     :source   (.-source m-content-obj)
+                                                     :caption  (.-caption m-content-obj)
+                                                     :html     (when formatted (.-body formatted))
+                                                     :info     (when-let [info (.-info m-content-obj)]
+                                                                 (let [res {:mimetype (.-mimetype info)
+                                                                            :size     (some-> info .-size js/Number)}]
+                                                                   (if (.-width info)
+                                                                     (assoc res :w (js/Number (.-width info))
+                                                                            :h (js/Number (.-height info)))
+                                                                     res)))})
                                                   {:unsupported true})})
                                     "Sticker"
                                     {:source (.-source kind-inner)
@@ -174,8 +186,11 @@
  (fn [db [_ room-id]]
    (get-in db [:timeline/loading-more? room-id] false)))
 
-(defn text-message [content]
-  (let [body (.-body content)]
+(defn message-text [{:keys [body html]}]
+  (log/debug (sanitize-custom-html html))
+  (log/debug html)
+  (if (seq html)
+    (into [:span.body.formatted] (sanitize-custom-html html))
     [:span.body body]))
 
 (defn async-media-wrapper [content {:keys [class default-ratio]} render-fn]
@@ -204,9 +219,13 @@
         (js/URL.revokeObjectURL url)))))
 
 (defn image-message [content]
-  (async-media-wrapper content {:class "media-image" :default-ratio 1.33}
-    (fn [url alt class-name]
-      [:img {:src url :alt alt :class class-name :loading "lazy"}])))
+  [:div.image-attachment-container
+   [async-media-wrapper content {:class "media-image" :default-ratio 1.33}
+    (fn [url _ class-name]
+      [:img {:src url :alt (:caption content) :class class-name :loading "lazy"}])]
+   (when (seq (:caption content))
+     [:div.media-caption
+      [message-text content]])])
 
 (defn video-message [content]
   (async-media-wrapper content {:class "media-video" :default-ratio 1.77}
@@ -218,12 +237,21 @@
     (fn [url alt class-name]
       [:img {:src url :alt alt :class class-name :loading "lazy"}])))
 
+(defn file-message [{:keys [caption source info]}]
+  [:div.file-attachment
+   [:a {:href (mxc->url source) :target "_blank" :className "file-link"}
+    [:span.file-icon "📁"]
+    [:span.file-name (or caption "Download File")]
+    (when-let [size (:size info)]
+      [:span.file-size (str "(" (quot size 1024) " KB)")])]])
+
 (defn render-message-content [msg-type-tag content-map]
   (case msg-type-tag
-    "Text"    [:span.body (:body content-map)]
+    "Text"    [message-text content-map]
     "Image"   [image-message content-map]
     "Video"   [video-message content-map]
-    "Sticker" [sticker-message content-map]i
+    "Sticker" [sticker-message content-map]
+    "File"    [file-message content-map]
     [:span.body (str "Unsupported message type: " msg-type-tag)]))
 
 (defn system-event-view [icon text]
