@@ -7,6 +7,7 @@
             [client.state :as state :refer [sdk-world]]
             [client.diff-handler :refer [apply-matrix-diffs]]
             [room.room-list :refer [parse-room]]
+            [utils.helpers :refer [mxc->url]]
             [taoensso.timbre :as log]))
 
 (defn apply-space-diffs! [space-id updates]
@@ -56,7 +57,7 @@
          {})
        (let [existing-subs (or (:space-subs db) {})
              new-space-ids (remove #(contains? existing-subs %) (keys new-spaces-map))]
-         {:db (assoc db :spaces new-spaces-map) ;; Use assoc so 'leaves' work!
+         {:db (assoc db :spaces new-spaces-map)
           :dispatch-n (for [id new-space-ids]
                         [:sdk/boot-background-space-list space-service id])})))))
 
@@ -157,7 +158,8 @@
       :itemContent (fn [index space]
                      (r/as-element
                       (let [id (or (:roomId space) (:id space))
-                            avatar (:avatarUrl space)
+                            raw-avatar (:avatarUrl space)
+                            avatar (when raw-avatar (mxc->url raw-avatar))
                             name (or (:displayName space) "?")]
                         [:div.space-icon-wrapper
                          {:class (when (= id active-space-id) "active")
