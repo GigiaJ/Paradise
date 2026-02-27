@@ -11,7 +11,7 @@ It is headless, so we can theme and customize it without much friction.
             [re-frame.core :as re-frame]
             [taoensso.timbre :as log]
             [clojure.string :as str]
-            [input.drafts :refer [attachment-preview]]
+            [input.drafts :refer [attachment-preview reify-attachment]]
             [input.composer :refer [tiptap-component]]
             [reagent.core :as r]
             ["generated-compat" :as sdk :refer [messagetype messageformat mediasource uploadsource uploadparameters]]))
@@ -81,7 +81,6 @@ https://matrix-org.github.io/matrix-rust-sdk/
            (re-frame/dispatch [:sdk/upload-complete]))))
      {})))
 
-
 #+end_src
 
 #+begin_src clojurescript :tangle ../../src/input/base.cljs
@@ -109,7 +108,14 @@ https://matrix-org.github.io/matrix-rust-sdk/
 #+end_src
 
 
-
+#+begin_src clojurescript :tangle ../../src/input/base.cljs
+(defn build-mentions [user-ids push-room?]
+  (if (and (empty? user-ids) (not push-room?))
+    js/undefined
+    (.. (.-Mentions sdk)
+        (create #js {:userIds (clj->js user-ids)
+                     :room (boolean push-room?)}))))
+#+end_src
 
 
 
@@ -126,37 +132,55 @@ https://matrix-org.github.io/matrix-rust-sdk/
        (seq attachments)
        (try
          (doseq [[idx att] (map-indexed vector attachments)]
-           (let [mime (or (:mime att) "application/octet-stream")
-                 file-info #js {:mimetype mime
-                                :size (js/BigInt (.-byteLength (:buffer att)))
-                                :thumbnailInfo js/undefined
-                                :thumbnailSource js/undefined}
-                 upload-source (.new (.-Data (.-UploadSource sdk))
-                                     #js {:bytes (:buffer att) :filename (:filename att)})
-                 caption (if (and (= idx 0) (not (str/blank? text))) text (:filename att))
-                 formatted (if (and (= idx 0) (not (str/blank? html))) html js/undefined)
-                 params (.. (.-UploadParameters sdk)
-                            (create #js {:source upload-source
-                                         :caption caption
-                                         :formattedCaption formatted}))]
-             (log/info "Sending file" (inc idx) "of" (count attachments))
-             (.sendFile timeline params file-info)))
-         (.clearComposerDraft room js/undefined)
-         (doseq [att attachments] (js/URL.revokeObjectURL (:preview-url att)))
-         {:db (-> db
-                  (assoc-in [:drafts room-id :attachments] [])
-                  (assoc-in [:composer room-id] {:text "" :html ""}))}
+           (let [ffi-att (reify-attachment att)
+                 inner   (.-inner ffi-att)
+                 tag     (.-tag ffi-att)
+                 source  (.-source inner)
+                 info    (condp = tag
+                           "Image" (.-imageInfo inner)
+                           "Video" (.-videoInfo inner)
+                           "Audio" (.-audioInfo inner)
+                           (.-fileInfo inner))
+                 html-format (.new (.-Html (.-MessageFormat sdk)))
+                 formatted-body #js {:format html-format
+                                     :body html}
+                 caption    (if (not (str/blank? text)) text js/undefined)
+;;                 reply-to-id @(re-frame/subscribe [:composer/reply-id room-id])
+                 in-reply-to ;;(or reply-to-id
+                                 js/undefined
+                                 ;;)
+                 mentions
+                 ;;(build-mentions @(re-frame/subscribe [:composer/mentions room-id]) false)
+                 js/undefined
+                 ]
+             (let [params (.. (.-UploadParameters sdk)
+                              (create #js {:source source
+                                           :caption caption
+                                           :formattedCaption formatted-body
+                                           :mentions mentions
+                                           :inReplyTo in-reply-to
+                                           }))]
+               (log/info "Sending" tag (inc idx))
+               (.sendFile timeline params info))))
+         (do
+           (.clearComposerDraft room js/undefined)
+           (doseq [att attachments] (js/URL.revokeObjectURL (:preview-url att)))
+           {:db (-> db
+                    (assoc-in [:drafts room-id :attachments] [])
+                    (assoc-in [:composer room-id] {:text "" :html "" :loaded-text ""}))})
          (catch :default e
            (log/error "File Send Panic:" e)
            {}))
+
        :else
        (try
          (let [msg-type (.new (.-Text MessageType) #js {:content #js {:body text :formatted js/undefined}})
                event    (.createMessageContent timeline msg-type)]
            (.send timeline event)
            (.clearComposerDraft room js/undefined)
-           {:db (assoc-in db [:composer room-id] {:text "" :html ""})})
+           {:db (assoc-in db [:composer room-id] {:text "" :html "" :loaded-text ""})})
          (catch :default e (log/error "Send Text Panic:" e) {}))))))
+
 
 (re-frame/reg-event-fx
  :sdk/send-message
