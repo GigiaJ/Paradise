@@ -11,8 +11,6 @@
 **** What is Paradise?
 Intended to be both a lightweight CLJS-based Matrix client that uses the matrix-rust-sdk with WASM bindings.
 
-Further on that, we opt to use the web-element-components which define the LOGIC for the behavior of components.
-
 This is necessary to avoid rewriting logic that has complex implementations. Instead we should use the views described
 and expand on them via the lovely polymorphic options provided via ClojureScript.
 
