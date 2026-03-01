@@ -4,47 +4,59 @@
 
 (defonce auth-token (atom nil))
 
-(defonce auth-token (atom nil))
-(defonce token-resolver (atom nil))
-(defonce token-promise
+(defonce active-sessions (atom {}))
+(defonce session-resolver (atom nil))
+(defonce session-promise
   (js/Promise. (fn [resolve]
-                 (reset! token-resolver resolve))))
+                 (reset! session-resolver resolve))))
 
 (.addEventListener js/self "message"
   (fn [event]
-    (let [data (.-data event)]
-      (when (= (.-type data) "SET_TOKEN")
-        (when @token-resolver (@token-resolver (.-token data)))
-        (js/console.log "SW: Token updated")))))
+    (let [data (.-data event)
+          source-id (.. event -source -id)]
+      (when (= (.-type data) "SET_SESSION")
+        (let [session-data (:session (js->clj data :keywordize-keys true))
+              full-session (assoc session-data :client-id source-id)]
+          (swap! active-sessions assoc source-id full-session)
+          (when @session-resolver (@session-resolver full-session))
+          (js/console.log "SW: Session updated for client:" source-id))))))
+
+(defn prune-cache! [cache-name max-items]
+  (p/let [cache (js/caches.open cache-name)
+          keys  (.keys cache)]
+    (when (> (.-length keys) max-items)
+      (.delete cache (first keys)))))
 
 (def cache-name "matrix-media-v1")
 
+
 (js/self.addEventListener "fetch"
   (fn [event]
-    (let [request (.-request event)
-          url     (js/URL. (.-url request))
-          path    (.-pathname url)]
+    (let [request   (.-request event)
+          method    (.-method request)
+          client-id (.-clientId event)
+          url       (js/URL. (.-url request))
+          path      (.-pathname url)
+          is-auth   (str/includes? path "/_matrix/client/v1/media/")]
       (cond
-        (or (str/includes? path "/_matrix/client/v1/media/")
-            (str/includes? path "/_matrix/media/v3/"))
-
+        (and (= method "GET")
+             (or is-auth (str/includes? path "/_matrix/media/v3/")))
         (.respondWith event
-          (p/let [cache    (js/caches.open cache-name)
-                  cached   (.match cache (.-url request))]
+          (p/let [cache  (js/caches.open cache-name)
+                  cached (.match cache request)]
             (if cached
               cached
-              (p/let
-                  [token (if @auth-token
-                @auth-token
-                (p/race [token-promise (p/delay 2000 nil)]))
-        _ (js/console.log "SW: Proceeding with token:" (some? token))
-        headers (js/Headers. (.-headers request))
-        _ (when token (.set headers "Authorization" (str "Bearer " token)))
-        resp (js/fetch (.-url request) #js {:headers headers :mode "cors"})]
-                (when (.-ok resp)
-                  (.put cache (.-url request) (.clone resp)))
-                resp))))
-
+              (p/let [session (some #(when (= client-id (:client-id %)) %)
+                                    (vals @active-sessions))
+                      token   (:accessToken session)
+                      headers (js/Headers. (.-headers request))]
+                (when (and is-auth token)
+                  (.set headers "Authorization" (str "Bearer " token)))
+                (p/let [resp (js/fetch (.-url request) #js {:headers headers :mode "cors"})]
+                  (when (and (.-ok resp)
+                             (< (js/parseInt (.get (.-headers resp) "content-length") 10) 10485760))
+                    (.put cache request (.clone resp)))
+                  resp)))))
         :else nil))))
 
 (js/self.addEventListener "install"

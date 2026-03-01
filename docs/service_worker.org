@@ -25,19 +25,51 @@ communicating with iframes.
 https://developer.mozilla.org/en-US/docs/Web/API/Window/postMessage
 
 
+Now we go a bit further and store the client-id of the session in-case
+later we wish to provide multi-session functionality more implicitly.
+This also provides a level of security ensuring we don't accidentally
+send data to the wrong client instance. By having the full session on
+hand we have the home-server and the token used too.
 #+begin_src clojurescript :tangle ../src/service_worker.cljs
-(defonce auth-token (atom nil))
-(defonce token-resolver (atom nil))
-(defonce token-promise
+(defonce active-sessions (atom {}))
+(defonce session-resolver (atom nil))
+(defonce session-promise
   (js/Promise. (fn [resolve]
-                 (reset! token-resolver resolve))))
+                 (reset! session-resolver resolve))))
 
 (.addEventListener js/self "message"
   (fn [event]
-    (let [data (.-data event)]
-      (when (= (.-type data) "SET_TOKEN")
-        (when @token-resolver (@token-resolver (.-token data)))
-        (js/console.log "SW: Token updated")))))
+    (let [data (.-data event)
+          source-id (.. event -source -id)]
+      (when (= (.-type data) "SET_SESSION")
+        (let [session-data (:session (js->clj data :keywordize-keys true))
+              full-session (assoc session-data :client-id source-id)]
+          (swap! active-sessions assoc source-id full-session)
+          (when @session-resolver (@session-resolver full-session))
+          (js/console.log "SW: Session updated for client:" source-id))))))
+#+end_src
+
+If possible we want to manage the cache and we want to also make sure we don't
+cache items that are too old. By caching we provide a level of offline access.
+
+One might wonder about the cache security. It is true that on desktop
+the cache is not encrypted by default, but it is however isolated and secure.
+
+The browser ensures this much at least. It would be the expectation of the
+user to encrypt their device. The performance impact of encrypting and
+decrypting the cache would be noticeable to the performance of the application.
+Not to mention entirely impractical as if an attacker has access to the cache then
+they also have access to the key to decrypt it.
+
+For mobile users can take solace we can rely on the fact their operating system
+encrypt the disk at rest (Full Disk Encryption).
+
+#+begin_src clojurescript :tangle ../src/service_worker.cljs
+(defn prune-cache! [cache-name max-items]
+  (p/let [cache (js/caches.open cache-name)
+          keys  (.keys cache)]
+    (when (> (.-length keys) max-items)
+      (.delete cache (first keys)))))
 #+end_src
 
 
@@ -57,32 +89,34 @@ We also want to define a cache so that users don't bother endlessly re-fetching 
 #+begin_src clojurescript :tangle ../src/service_worker.cljs
 (def cache-name "matrix-media-v1")
 
+
 (js/self.addEventListener "fetch"
   (fn [event]
-    (let [request (.-request event)
-          url     (js/URL. (.-url request))
-          path    (.-pathname url)]
+    (let [request   (.-request event)
+          method    (.-method request)
+          client-id (.-clientId event)
+          url       (js/URL. (.-url request))
+          path      (.-pathname url)
+          is-auth   (str/includes? path "/_matrix/client/v1/media/")]
       (cond
-        (or (str/includes? path "/_matrix/client/v1/media/")
-            (str/includes? path "/_matrix/media/v3/"))
-
+        (and (= method "GET")
+             (or is-auth (str/includes? path "/_matrix/media/v3/")))
         (.respondWith event
-          (p/let [cache    (js/caches.open cache-name)
-                  cached   (.match cache (.-url request))]
+          (p/let [cache  (js/caches.open cache-name)
+                  cached (.match cache request)]
             (if cached
               cached
-              (p/let
-                  [token (if @auth-token
-                @auth-token
-                (p/race [token-promise (p/delay 2000 nil)]))
-        _ (js/console.log "SW: Proceeding with token:" (some? token))
-        headers (js/Headers. (.-headers request))
-        _ (when token (.set headers "Authorization" (str "Bearer " token)))
-        resp (js/fetch (.-url request) #js {:headers headers :mode "cors"})]
-                (when (.-ok resp)
-                  (.put cache (.-url request) (.clone resp)))
-                resp))))
-
+              (p/let [session (some #(when (= client-id (:client-id %)) %)
+                                    (vals @active-sessions))
+                      token   (:accessToken session)
+                      headers (js/Headers. (.-headers request))]
+                (when (and is-auth token)
+                  (.set headers "Authorization" (str "Bearer " token)))
+                (p/let [resp (js/fetch (.-url request) #js {:headers headers :mode "cors"})]
+                  (when (and (.-ok resp)
+                             (< (js/parseInt (.get (.-headers resp) "content-length") 10) 10485760))
+                    (.put cache request (.clone resp)))
+                  resp)))))
         :else nil))))
 #+end_src
 
@@ -125,15 +159,14 @@ The major functionality we need is to register the service worker itself.
 We do so while passing off the session token so that the service worker
 may immediately begin to render our images.
 #+begin_src clojurescript :tangle ../src/service_worker_handler.cljs
-(defn register-sw! [token]
+(defn register-sw! [session]
   (when (exists? js/navigator.serviceWorker)
-    (log/debug "Attaching Service Worker")
     (-> (js/navigator.serviceWorker.register "/sw.js" #js {:type "module"})
         (.then (fn [reg]
                  (when (.-waiting reg)
                    (.postMessage (.-waiting reg) #js {:type "SKIP_WAITING"}))
-                 (when (and (.-controller js/navigator.serviceWorker) token)
-                   (re-frame/dispatch [:auth/sync-sw-only token])))))))
+                 (when (and (.-controller js/navigator.serviceWorker) session)
+                   (re-frame/dispatch [:auth/sync-sw-only session])))))))
 #+end_src
 
 
@@ -143,21 +176,26 @@ We may wish to break this apart a bit for re-usability, but for now this will do
 #+begin_src clojurescript :tangle ../src/service_worker_handler.cljs
 (re-frame/reg-event-fx
  :auth/sync-sw-only
- (fn [_ [_ token]]
-   {:sync-sw-auth token}))
+ (fn [_ [_ session]]
+   {:sync-sw-auth session}))
 
 (re-frame/reg-event-fx
  :auth/save-session
- (fn [{:keys [db]} [_ {:keys [access-token user-id]}]]
-   {:db (assoc db :access-token access-token :user-id user-id)
-    :sync-sw-auth access-token}))
+ (fn [{:keys [db]} [_ {:keys [access-token user-id homeserver]}]]
+   {:db (assoc db :access-token access-token :user-id user-id :homeserver homeserver)
+    :sync-sw-auth {:token access-token :homeserver homeserver}}))
 
 (re-frame/reg-fx
  :sync-sw-auth
- (fn [token]
+ (fn [session]
    (if-let [sw-controller (.-controller js/navigator.serviceWorker)]
-     (do
-       (.postMessage sw-controller #js {:type "SET_TOKEN" :token token})
-       (js/console.log "re-frame: Token synced to Service Worker"))
-     (js/console.warn "re-frame: SW controller not found, token not synced"))))
+     (try
+       (let [origin (.-origin (js/URL. (:homeserverUrl session)))
+             payload (assoc session :origin origin)]
+         (.postMessage sw-controller #js {:type "SET_SESSION"
+                                          :session (clj->js payload)})
+         (js/console.log "re-frame: Session synced for" (:userId session) "at" origin))
+       (catch js/Error e
+         (js/console.error "re-frame: Failed to parse homeserver URL" e)))
+     (js/console.warn "re-frame: SW controller not found"))))
 #+end_src
