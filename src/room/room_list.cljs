@@ -20,6 +20,7 @@
   (p/let [room-info     (if (fn? (.-roomInfo room-interface)) (.roomInfo room-interface) nil)
           latest-event  (.latestEvent room-interface)
           room-id       (.-id room-info)
+          _ (log/debug latest-event)
            parents (if space-service
                     (.joinedParentsOfChild space-service room-id)
                     (p/resolved []))
@@ -151,7 +152,6 @@
                  (when (= rid active-id) r)))
              all-known)))))
 
-
 (re-frame/reg-sub
  :rooms/map
  :<- [:rooms/all]
@@ -162,18 +162,49 @@
                  id (or (:id r) (:roomId r))]
              [id r])))))
 
+(re-frame/reg-sub
+ :rooms/indexed-map
+ :<- [:rooms/all]
+ (fn [rooms-list _]
+   (into {}
+         (for [room rooms-list]
+           (let [r  (js->clj room :keywordize-keys true)
+                 id (or (:id r) (:roomId r))]
+             [id r])))))
+
+(re-frame/reg-sub
+ :rooms/ordered-list
+ :<- [:rooms/all]
+ (fn [rooms-list _]
+   (mapv #(js->clj % :keywordize-keys true) rooms-list)))
+
 
 (re-frame/reg-sub
  :rooms/current-view
  :<- [:spaces/active-id]
- :<- [:rooms/map]
+ :<- [:rooms/ordered-list]
+ :<- [:rooms/indexed-map]
  :<- [:space-children/map]
  :<- [:rooms/closed-drawers]
- (fn [[active-space-id rooms-map children-map closed-drawers] _]
-   (if-not active-space-id
-     (vec (vals rooms-map))
-     (flatten-tree rooms-map children-map closed-drawers active-space-id 0))))
+ (fn [[active-id ordered-list indexed-map children-map closed-drawers] _]
+   (if-not active-id
+     ordered-list
+     (flatten-tree indexed-map children-map closed-drawers active-id 0))))
 
+#_(re-frame/reg-sub
+ :rooms/current-view
+ :<- [:spaces/active-id]
+ :<- [:rooms/ordered-list]
+ :<- [:rooms/indexed-map]
+ :<- [:room-list/active-filter]
+ :<- [:space-children/map]
+ :<- [:rooms/closed-drawers]
+ (fn [[active-id ordered-list indexed-map active-filter children-map closed-drawers] _]
+   (cond
+     (= active-filter "people")
+     ordered-list
+     :else
+     (flatten-tree indexed-map children-map closed-drawers active-id 0))))
 
 (re-frame/reg-event-db
  :rooms/toggle-drawer
@@ -240,7 +271,7 @@
 
 
 (re-frame/reg-event-fx
- :room/select
+ :rooms/select
  (fn [{:keys [db]} [_ room-id]]
    (let [current-room (:active-room-id db)]
      (if (= current-room room-id)
@@ -330,11 +361,12 @@
       :itemContent
       (fn [index room]
         (r/as-element
-         (let [{:keys [id name is-space? depth notification-count avatar-url]} room
+         (let [{:keys [id name is-space? depth notification-count]} room
+               avatar-url (:avatar room)
+               _ (log/debug room)
                depth   (or depth 0)
                indent  (* depth 12)
-               is-people? (or (= active-filter "people")
-                              (and (not is-space?) (some? avatar-url)))
+               _ (js/console.log is-people?)
                is-closed? (contains? closed-drawers id)]
            (if is-space?
              [:div.room-drawer-header
@@ -346,8 +378,8 @@
              [:div.room-item
               {:style {:padding-left (str indent "px")}
                :class (when (= id active-room) "active")
-               :on-click #(re-frame/dispatch [:room/select id])}
-              (if is-people?
+               :on-click #(re-frame/dispatch [:rooms/select id])}
+              (if (= active-filter "people")
                  [avatar {:id id :name name :url avatar-url :size 24 :status :online}]
                  [:span.room-hash "# "])
               [:span.room-name name]
@@ -361,6 +393,7 @@
         active-space    @(re-frame/subscribe [:spaces/active-metadata])
         closed-drawers @(re-frame/subscribe [:rooms/closed-drawers])
         room-array     (to-array rooms)]
+
     [:div.sidebar-rooms
      {:style {:display "flex" :flex-direction "column" :height "100%"}}
      [:h3.rooms-header {:style {:padding "8px"}}
