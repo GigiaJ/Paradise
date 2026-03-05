@@ -138,6 +138,19 @@
        (.paginate space-list))
      {})))
 
+(defn fetch-space-hierarchy [space-id]
+  (let [client @(re-frame/subscribe [:sdk/client])
+        base-url (.homeserver client)
+        token (.-accessToken (.session client))
+        _ (js/console.log base-url)
+        _ (js/console.log token)
+        url (str base-url "_matrix/client/v1/rooms/" space-id "/hierarchy")]
+    (-> (js/fetch url #js {:headers #js {:Authorization (str "Bearer " token)}})
+        (p/then #(.json %))
+        (p/then (fn [json]
+                  (let [resp (js->clj json :keywordize-keys true)]
+                    (re-frame/dispatch [:rooms/process-hierarchy space-id (:rooms resp)])))))))
+
 (re-frame/reg-sub
  :spaces/all
  (fn [db _]
@@ -198,6 +211,27 @@
 
 
 (re-frame/reg-event-fx
+ :sdk/fetch-space-hierarchy
+ (fn [_ [_ space-id]]
+   (fetch-space-hierarchy space-id)
+   {}))
+
+(re-frame/reg-event-fx
+ :space/select
+ (fn [{:keys [db]} [_ space-id]]
+   (let [current-space (:active-space-id db)]
+     (if (= current-space space-id)
+       {}
+       {:db (-> db
+                (assoc :active-space-id space-id)
+                (assoc :active-room-id nil))
+        :dispatch-n (if space-id
+                      [[:sdk/paginate-space space-id]
+                       [:room-list/apply-filter "all"]
+                       [:sdk/fetch-space-hierarchy space-id]]
+                      [[:room-list/apply-filter "people"]])}))))
+
+#_(re-frame/reg-event-fx
  :space/select
  (fn [{:keys [db]} [_ space-id]]
    (let [current-space (:active-space-id db)]
@@ -262,6 +296,7 @@
       :itemContent
       (fn [index space-map]
         (r/as-element
+         
          (let [{:keys [id name avatar-url]} space-map]
            [:div.space-icon-wrapper
             {:class (when (= id active-space-id) "active")
@@ -271,7 +306,7 @@
                      :name name
                      :url (mxc->url avatar-url)
                      :size 48
-                     :shape :space}]])))}]))
+                     :shape :circle}]])))}]))
 
 (defn spaces-sidebar []
   (let [spaces @(re-frame/subscribe [:spaces/all])

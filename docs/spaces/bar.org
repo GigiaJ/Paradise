@@ -42,6 +42,8 @@ Handle space children which are much simpler than just room summaries.
 
 
 We'll make this behavior global later. Room, timeline, and spaces can use it the same.
+We describe it in the method doc, but effectively it provides a buffer to the reframe
+without slowing don't the rust-sdk.
 #+begin_src clojurescript :tangle ../../src/spaces/bar.cljs
 (defn apply-generic-diffs!
   "A universal mutex-locked diff processor for the Matrix Rust SDK."
@@ -168,6 +170,33 @@ paginate directly.
 #+end_src
 
 
+Bit of an issue in the version of the sdk, but since we do need some state
+events (as the sdk lacks a coherent method) we must do some operations
+ourself. When we update I would imagine some of these will disappear.
+For now though, to determine the actual hierarchy we need the hierarchy
+end point itself which will easily allow us to sort Spaces.
+We do eventually need to clean up the filter as this will cause
+repeat fetches for the space rooms for now.
+
+We'll keep the re-frame portion here are well simply because I expect
+this to be removed later.
+#+begin_src clojurescript :tangle ../../src/spaces/bar.cljs
+(defn fetch-space-hierarchy [space-id]
+  (let [client @(re-frame/subscribe [:sdk/client])
+        base-url (.homeserver client)
+        token (.-accessToken (.session client))
+        _ (js/console.log base-url)
+        _ (js/console.log token)
+        url (str base-url "_matrix/client/v1/rooms/" space-id "/hierarchy")]
+    (-> (js/fetch url #js {:headers #js {:Authorization (str "Bearer " token)}})
+        (p/then #(.json %))
+        (p/then (fn [json]
+                  (let [resp (js->clj json :keywordize-keys true)]
+                    (re-frame/dispatch [:rooms/process-hierarchy space-id (:rooms resp)])))))))
+#+end_src
+
+
+
 
 These are a stub until later.
 #+begin_src clojurescript :tangle ../../src/spaces/bar.cljs
@@ -231,6 +260,27 @@ These are a stub until later.
 
 
 (re-frame/reg-event-fx
+ :sdk/fetch-space-hierarchy
+ (fn [_ [_ space-id]]
+   (fetch-space-hierarchy space-id)
+   {}))
+
+(re-frame/reg-event-fx
+ :space/select
+ (fn [{:keys [db]} [_ space-id]]
+   (let [current-space (:active-space-id db)]
+     (if (= current-space space-id)
+       {}
+       {:db (-> db
+                (assoc :active-space-id space-id)
+                (assoc :active-room-id nil))
+        :dispatch-n (if space-id
+                      [[:sdk/paginate-space space-id]
+                       [:room-list/apply-filter "all"]
+                       [:sdk/fetch-space-hierarchy space-id]]
+                      [[:room-list/apply-filter "people"]])}))))
+
+#_(re-frame/reg-event-fx
  :space/select
  (fn [{:keys [db]} [_ space-id]]
    (let [current-space (:active-space-id db)]
@@ -308,6 +358,7 @@ at abstracting the excessive state management of React.
       :itemContent
       (fn [index space-map]
         (r/as-element
+         
          (let [{:keys [id name avatar-url]} space-map]
            [:div.space-icon-wrapper
             {:class (when (= id active-space-id) "active")
@@ -317,7 +368,7 @@ at abstracting the excessive state management of React.
                      :name name
                      :url (mxc->url avatar-url)
                      :size 48
-                     :shape :space}]])))}]))
+                     :shape :circle}]])))}]))
 #+end_src
 
 Actually using the virtualized space bar is easy. We just need
