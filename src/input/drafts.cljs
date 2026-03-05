@@ -49,7 +49,7 @@
     {:on-click #(re-frame/dispatch [:composer/remove-attachment room-id index])}
     "✕"]])
 
-#_(re-frame/reg-event-fx
+  (re-frame/reg-event-fx
  :composer/save-draft
  (fn [{:keys [db]} [_ room-id text html buffer filename mime]]
    (let [timeline (get-in db [:timeline-subs room-id :timeline])]
@@ -108,23 +108,18 @@
          (catch :default e (log/error "Draft Persist Panic:" e))))
      {})))
 
-
-#_(re-frame/reg-event-fx
+(re-frame/reg-event-fx
  :composer/on-change
  (fn [{:keys [db]} [_ room-id text html]]
    (let [old-timer (get-in db [:composer room-id :save-timer])]
      (when old-timer (js/clearTimeout old-timer))
-     {:db (assoc-in db [:composer room-id]
-                    {:text text :html html
-                     :save-timer (js/setTimeout
+     {:db (update-in db [:composer room-id]
+                     merge
+                     {:text text
+                      :html html
+                      :save-timer (js/setTimeout
                                    #(re-frame/dispatch [:composer/persist-draft room-id])
-                                   1000)})
-      :dispatch-n []})))
-
-(re-frame/reg-event-db
- :composer/on-change
- (fn [db [_ room-id text html]]
-   (assoc-in db [:composer room-id :current-text] (or html text))))
+                                   1000)})})))
 
 (re-frame/reg-event-db
  :composer/add-attachment
