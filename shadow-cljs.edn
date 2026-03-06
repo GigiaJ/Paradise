@@ -2,9 +2,14 @@
  :builds
  {:app {:target :esm
         :npm-deps false
-        :build-hooks [[build-hooks/generate-lang-map]
-                      [build-hooks/tangle-hook]]
-        :output-dir "resources/public"
+        :build-hooks [
+                      ;;[build-hooks/generate-lang-map]
+                      [build-hooks/include-root-files]
+                      [build-hooks/include-themes]
+                      [build-hooks/copy-wasm]
+;;                      [build-hooks/tangle-hook]
+                      ]
+        :output-dir "build"
         :asset-path "/"
         :modules {:base {:entries []}
                   :main {:entries [client.core]
@@ -18,6 +23,10 @@
          :esm-js-shim false
          :loader {".css" :css}}
         :compiler-options
-        {:output-feature-set :es-next}
+        {:optimizations :simple
+         :output-feature-set :es-next
+         :warnings {:undeclared-ns false
+                    :undeclared-var false
+                    :infer-warning false}}
         :devtools {:after-load client.core/after-load
                    :watch-dir "docs"}}}}
