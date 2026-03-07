@@ -6,23 +6,25 @@
 
 (defn register-sw! [session]
   (when (exists? js/navigator.serviceWorker)
-    (-> (js/navigator.serviceWorker.register "/sw.js" #js {:type "module"})
-        (.then (fn [reg]
-                 (when (.-waiting reg)
-                   (.postMessage (.-waiting reg) #js {:type "SKIP_WAITING"}))
-                 (when (and (.-controller js/navigator.serviceWorker) session)
-                   (re-frame/dispatch [:auth/sync-sw-only session])))))))
+    (let [sw-container js/navigator.serviceWorker
+          try-sync!    (fn []
+                         (when (and (.-controller sw-container) session)
+                           (re-frame/dispatch [:auth/sync-sw-only session])))]
+
+      (-> (.register sw-container "/sw.js" #js {:type "module"})
+          (.then (fn [reg]
+                   (when (.-waiting reg)
+                     (.postMessage (.-waiting reg) #js {:type "SKIP_WAITING"})))))
+      (try-sync!)
+      (.addEventListener sw-container "controllerchange"
+                         (fn []
+                           (js/console.log "re-frame: SW Controller changed, syncing session...")
+                           (try-sync!))))))
 
 (re-frame/reg-event-fx
  :auth/sync-sw-only
  (fn [_ [_ session]]
    {:sync-sw-auth session}))
-
-(re-frame/reg-event-fx
- :auth/save-session
- (fn [{:keys [db]} [_ {:keys [access-token user-id homeserver]}]]
-   {:db (assoc db :access-token access-token :user-id user-id :homeserver homeserver)
-    :sync-sw-auth {:token access-token :homeserver homeserver}}))
 
 (re-frame/reg-fx
  :sync-sw-auth
