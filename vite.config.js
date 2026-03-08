@@ -9,6 +9,8 @@ export default defineConfig(({ mode }) => {
     const env = loadEnv(mode, process.cwd());
 
     return {
+
+        publicDir: '../public',
         root: './build',
         plugins: [
             wasm(),
@@ -39,8 +41,26 @@ export default defineConfig(({ mode }) => {
                     maximumFileSizeToCacheInBytes: 70428800
                 },
                 devOptions: {
-                    enabled: false,
+                    enabled: true,
                     type: 'module'
+                },
+                manifest: {
+                    name: 'Paradise',
+                    short_name: 'Paradise',
+                    start_url: '/',
+                    display: 'standalone',
+                    icons: [
+                        {
+                            src: 'icon-192x192.png',
+                            sizes: '192x192',
+                            type: 'image/png'
+                        },
+                        {
+                            src: 'icon-512x512.png',
+                            sizes: '512x512',
+                            type: 'image/png'
+                        }
+                    ]
                 }
             })
         ],
