@@ -9,7 +9,7 @@
         "notangle": "concurrently \"npx shadow-cljs watch app\" \"npx vite\"",
         "dev": "concurrently \"npx shadow-cljs watch app\" \"npx nbb src/utils/tangler.cljs\" \"npx vite\"",
         "release": "npx shadow-cljs release app && npx vite build",
-        "serve": "npx serve -s dist -l 8002",
+        "serve": "npx serve -s dist -l 8000",
         "ubrn:web:build:release": "PATH=$HOME/.cargo/bin:/bin:$PATH && ubrn build web --config ubrn.config.yaml --release",
         "ubrn:web:build": "PATH=$HOME/.cargo/bin:/bin:$PATH && ubrn build web --config ubrn.config.yaml",
         "ubrn:checkout": "PATH=$HOME/.cargo/bin:/bin:$PATH && ubrn checkout --config ubrn.config.yaml",
@@ -28,7 +28,8 @@
         "react-virtuoso": "^4.18.1",
         "shadow-cljs": "^3.3.6",
         "typescript": "^5.9.3",
-        "uniffi-bindgen-react-native": "git+https://github.com/jhugman/uniffi-bindgen-react-native#5c01f3f7025d069aac1dd1fd51ca72bb76fdb243"
+        "uniffi-bindgen-react-native": "git+https://github.com/jhugman/uniffi-bindgen-react-native#5c01f3f7025d069aac1dd1fd51ca72bb76fdb243",
+        "workbox-precaching": "^7.4.0"
     },
     "packageManager": "yarn@1.22.22+sha512.a6b2f7906b721bba3d67d4aff083df04dad64c399707841b7acf00f6b133b7ac24255f2652fa22ae3534329dc6180534e98d17432037ff6fd140556e2bb3137e",
     "devDependencies": {
@@ -41,8 +42,9 @@
         "babel-plugin-transform-rename-import": "^2.3.0",
         "concurrently": "^9.2.1",
         "vite": "^7.3.1",
+        "vite-plugin-pwa": "^1.2.0",
+        "vite-plugin-static-copy": "^3.2.0",
         "vite-plugin-top-level-await": "^1.6.0",
-        "vite-plugin-wasm": "^3.5.0",
-        "vite-plugin-static-copy": "^3.2.0"
+        "vite-plugin-wasm": "^3.5.0"
     }
 }
