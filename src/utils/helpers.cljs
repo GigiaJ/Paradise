@@ -4,7 +4,7 @@
    [hickory.core :as h]
    [hickory.render :as hr]
    [clojure.walk :as walk]
-   ))
+   [taoensso.timbre :as log]))
 
 (defn mxc->url
   "Converts an mxc:// URI to a full HTTP(S) URL.
@@ -14,10 +14,12 @@
    - :height integer
    - :method 'crop' or 'scale'"
   ([mxc-url] (mxc->url mxc-url {}))
-  ([mxc-url {:keys [type width height method] :or {type :download}}]
+  ([mxc-url {:keys [homeserver type width height method] :or {type :download}}]
    (when (and mxc-url (str/starts-with? mxc-url "mxc://"))
-     (let [server-base (or js/process.env.MATRIX_HOMESERVER
-                           (or js/window.MATRIX_HOMESERVER "https://matrix.org"))
+     (let [db @re-frame.db/app-db
+           server-base (str/replace
+             (or (:homeserver-url db)
+                 (or js/window.MATRIX_HOMESERVER "https://matrix.org")) #"/+$" "")
            resource    (str/replace mxc-url #"^mxc://" "")
            base-path   (str "/_matrix/client/v1/media/" (name type) "/" resource)]
        (if (= type :thumbnail)
@@ -26,6 +28,16 @@
               "&height=" (or height 48)
               "&method=" (or method "crop"))
          (str server-base base-path))))))
+
+(defn url->mxc [url]
+  (when (string? url)
+    (let [server-base (or js/process.env.MATRIX_HOMESERVER
+                          (or js/window.MATRIX_HOMESERVER "https://matrix.org"))
+          pattern (re-pattern (str "^" server-base "/_matrix/client/v1/media/(download|thumbnail)/"))]
+      (if (str/includes? url server-base)
+        (str "mxc://" (str/replace url pattern ""))
+        url))))
+
 
 (def max-tag-nesting 100)
 
@@ -52,14 +64,27 @@
 
 (def non-text-tags #{:style :script :textarea :option :noscript :mx-reply})
 
+(defn- parse-style-str
+  "Converts 'color: red; margin-top: 10px' into {:color 'red' :margin-top '10px'}"
+  [style-str]
+  (if (string? style-str)
+    (->> (str/split style-str #";")
+         (remove str/blank?)
+         (map #(str/split % #":"))
+         (filter #(= 2 (count %)))
+         (map (fn [[k v]] [(keyword (str/trim k)) (str/trim v)]))
+         (into {}))
+    style-str))
+
 (defn- transform-font-span [attrs]
   (let [bg (get attrs :data-mx-bg-color)
         fg (get attrs :data-mx-color)
-        style-parts (cond-> []
-                      bg (conj (str "background-color: " bg))
-                      fg (conj (str "color: " fg)))]
-    (if (seq style-parts)
-      (assoc attrs :style (str/join "; " style-parts))
+        existing-style (parse-style-str (get attrs :style))
+        style-map (cond-> (or existing-style {})
+                    bg (assoc :background-color bg)
+                    fg (assoc :color fg))]
+    (if (seq style-map)
+      (assoc attrs :style style-map)
       attrs)))
 
 (defn- transform-a [attrs]
@@ -69,10 +94,7 @@
   (let [src (get attrs :src "")]
     (if (and (string? src) (str/starts-with? src "mxc://"))
       {:tag :img
-       :attrs (assoc attrs :src (mxc->url src {:type   :thumbnail
-                                               :width  (or (get attrs :width) 32)
-                                               :height (or (get attrs :height) 32)
-                                               :method "scale"}))}
+       :attrs (-> attrs (assoc :class "timeline-emotes") (assoc :src (mxc->url src)))}
       {:tag :a
        :attrs {:href src :rel "noopener" :target "_blank"}
        :content [(or (get attrs :alt) src)]})))
@@ -144,3 +166,30 @@
 (defn sanitize-text [raw-text]
   (when raw-text
     (str/escape (str raw-text) {\& "&amp;" \< "&lt;" \> "&gt;" \" "&quot;" \' "&#39;"})))
+
+(defn click-away-wrapper
+  "A reusable invisible backdrop for 'light dismiss' popovers.
+   It catches clicks and prevents them from bleeding through to the app."
+  [{:keys [on-close z-index]} & children]
+  [:<>
+   [:div.click-away-catcher
+    {:on-mouse-down (fn [e]
+                      (.preventDefault e)
+                      (.stopPropagation e)
+                      (on-close))
+     :style {:position "fixed"
+             :top 0 :left 0 :right 0 :bottom 0
+             :z-index (or z-index 99)
+             :cursor "default"}}]
+   (into [:<>] children)])
+
+(defn format-divider-date [ts]
+  (let [date (js/Date. ts)
+        today (js/Date.)
+        is-today (= (.toDateString date) (.toDateString today))
+        yesterday (doto (js/Date.) (.setDate (- (.getDate today) 1)))
+        is-yesterday (= (.toDateString date) (.toDateString yesterday))]
+    (cond
+      is-today "Today"
+      is-yesterday "Yesterday"
+      :else (.toLocaleDateString date js/undefined #js {:month "long" :day "numeric" :year "numeric"}))))
