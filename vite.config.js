@@ -2,6 +2,7 @@ import { defineConfig, loadEnv } from 'vite';
 import wasm from 'vite-plugin-wasm';
 import topLevelAwait from "vite-plugin-top-level-await";
 import { viteStaticCopy } from 'vite-plugin-static-copy';
+import { VitePWA } from "vite-plugin-pwa";
 import path from 'path';
 
 export default defineConfig(({ mode }) => {
@@ -24,14 +25,34 @@ export default defineConfig(({ mode }) => {
                     }
 
                 ]
+            }),
+            VitePWA({
+                strategies: 'injectManifest',
+                srcDir: '.',
+                filename: 'sw.js',
+                injectRegister: 'inline',
+                injectManifest: {
+                    injectionPoint: 'self.__WB_MANIFEST',
+                    minify: false,
+                    swSrc: './sw.js',
+                    swDest: './dist/sw.js',
+                    maximumFileSizeToCacheInBytes: 70428800
+                },
+                devOptions: {
+                    enabled: false,
+                    type: 'module'
+                }
             })
         ],
 
         define: {
+            'process.env.VAPID_KEY': JSON.stringify(env.VITE_VAPID_KEY),
+            'process.env.PUSH_NOTIFY_URL': JSON.stringify(env.VITE_PUSH_NOTIFY_URL),
+            'process.env.WEB_PUSH_APP_ID': JSON.stringify(env.VITE_WEB_PUSH_APP_ID),
             'process.env.MATRIX_HOMESERVER':
-        JSON.stringify(
-            env.VITE_MATRIX_HOMESERVER ||
-                "https://matrix.org"),
+            JSON.stringify(
+                env.VITE_MATRIX_HOMESERVER ||
+                    "https://matrix.org"),
             'global': 'globalThis'
         },
 
@@ -68,6 +89,7 @@ export default defineConfig(({ mode }) => {
         server: {
             port: 8000,
             host: true,
+            allowedHosts: true,
             fs: {
                 allow: [
                     path.resolve(__dirname, 'build'),
