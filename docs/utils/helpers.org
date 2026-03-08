@@ -113,10 +113,7 @@ Just use Reagent.
   (let [src (get attrs :src "")]
     (if (and (string? src) (str/starts-with? src "mxc://"))
       {:tag :img
-       :attrs (assoc attrs :src (mxc->url src {:type   :thumbnail
-                                               :width  (or (get attrs :width) 32)
-                                               :height (or (get attrs :height) 32)
-                                               :method "scale"}))}
+       :attrs (-> attrs (assoc :class "timeline-emotes") (assoc :src (mxc->url src)))}
       {:tag :a
        :attrs {:href src :rel "noopener" :target "_blank"}
        :content [(or (get attrs :alt) src)]})))
