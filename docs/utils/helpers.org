@@ -83,14 +83,27 @@ Just use Reagent.
 
 (def non-text-tags #{:style :script :textarea :option :noscript :mx-reply})
 
+(defn- parse-style-str
+  "Converts 'color: red; margin-top: 10px' into {:color 'red' :margin-top '10px'}"
+  [style-str]
+  (if (string? style-str)
+    (->> (str/split style-str #";")
+         (remove str/blank?)
+         (map #(str/split % #":"))
+         (filter #(= 2 (count %)))
+         (map (fn [[k v]] [(keyword (str/trim k)) (str/trim v)]))
+         (into {}))
+    style-str))
+
 (defn- transform-font-span [attrs]
   (let [bg (get attrs :data-mx-bg-color)
         fg (get attrs :data-mx-color)
-        style-parts (cond-> []
-                      bg (conj (str "background-color: " bg))
-                      fg (conj (str "color: " fg)))]
-    (if (seq style-parts)
-      (assoc attrs :style (str/join "; " style-parts))
+        existing-style (parse-style-str (get attrs :style))
+        style-map (cond-> (or existing-style {})
+                    bg (assoc :background-color bg)
+                    fg (assoc :color fg))]
+    (if (seq style-map)
+      (assoc attrs :style style-map)
       attrs)))
 
 (defn- transform-a [attrs]
