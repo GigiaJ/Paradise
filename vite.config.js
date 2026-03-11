@@ -5,6 +5,23 @@ import { viteStaticCopy } from 'vite-plugin-static-copy';
 import { VitePWA } from "vite-plugin-pwa";
 import path from 'path';
 
+const copyFiles = {
+    targets: [
+        {
+            src: path.resolve(__dirname, 'node_modules/@element-hq/element-call-embedded/dist/*'),
+            dest: 'element-call',
+        },
+        {
+            src: path.resolve(__dirname, 'packages/generated-compat/src/generated-compat/wasm-bindgen'),
+            dest: 'generated-compat'
+        },
+        {
+            src: 'themes/*',
+            dest: 'themes'
+        }
+    ]
+}
+
 export default defineConfig(({ mode }) => {
     const env = loadEnv(mode, process.cwd());
 
@@ -15,19 +32,7 @@ export default defineConfig(({ mode }) => {
         plugins: [
             wasm(),
             topLevelAwait(),
-            viteStaticCopy({
-                targets: [
-                    {
-                        src: path.resolve(__dirname, 'packages/generated-compat/src/generated-compat/wasm-bindgen'),
-                        dest: 'generated-compat'
-                    },
-                    {
-                        src: 'themes/*',
-                        dest: 'themes'
-                    }
-
-                ]
-            }),
+            viteStaticCopy(copyFiles),
             VitePWA({
                 strategies: 'injectManifest',
                 srcDir: '.',
@@ -41,7 +46,7 @@ export default defineConfig(({ mode }) => {
                     maximumFileSizeToCacheInBytes: 70428800
                 },
                 devOptions: {
-                    enabled: true,
+                    enabled: false,
                     type: 'module'
                 },
                 manifest: {
@@ -70,8 +75,8 @@ export default defineConfig(({ mode }) => {
             'process.env.PUSH_NOTIFY_URL': JSON.stringify(env.VITE_PUSH_NOTIFY_URL),
             'process.env.WEB_PUSH_APP_ID': JSON.stringify(env.VITE_WEB_PUSH_APP_ID),
             'process.env.MATRIX_HOMESERVER':
-            JSON.stringify(
-                env.VITE_MATRIX_HOMESERVER ||
+                JSON.stringify(
+                    env.VITE_MATRIX_HOMESERVER ||
                     "https://matrix.org"),
             'global': 'globalThis'
         },
@@ -102,16 +107,24 @@ export default defineConfig(({ mode }) => {
                 'react': path.resolve(__dirname, './node_modules/react'),
                 'react-dom': path.resolve(__dirname, './node_modules/react-dom'),
                 'react/jsx-runtime': path.resolve(__dirname, './node_modules/react/jsx-runtime'),
-                'react/jsx-dev-runtime': path.resolve(__dirname, './node_modules/react/jsx-dev-runtime')
+                'react/jsx-dev-runtime': path.resolve(__dirname, './node_modules/react/jsx-dev-runtime'),
+           //      '/element-call': path.resolve(__dirname, './node_modules/@element-hq/element-call-embedded')
             }
         },
+
+
 
         server: {
             port: 8000,
             host: true,
             allowedHosts: true,
+            headers: {
+                "Cross-Origin-Opener-Policy": "same-origin",
+                "Cross-Origin-Embedder-Policy": "require-corp",
+            },
             fs: {
                 allow: [
+                    path.resolve(__dirname, '..'),
                     path.resolve(__dirname, 'build'),
                     path.resolve(__dirname, 'node_modules')
                 ]
