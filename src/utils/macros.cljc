@@ -1,5 +1,6 @@
 (ns utils.macros
-  (:require [clojure.java.io :as io]))
+  (:require [clojure.java.io :as io]
+            [clojure.edn :as edn]))
 
 (defmacro ocall
   [obj method & args]
@@ -23,3 +24,6 @@
                            (let [lang (second (re-find #"([^/]+)\.json$" (.getPath f)))]
                              [lang `(fn [] (js/import ~(.getPath f)))])))]
     mapping))
+
+(defmacro load-static-config [path]
+  (edn/read-string (slurp path)))
