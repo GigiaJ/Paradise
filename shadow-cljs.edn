@@ -7,7 +7,8 @@
                       [build-hooks/include-root-files]
                       [build-hooks/include-themes]
                       [build-hooks/copy-wasm]
-;;                      [build-hooks/tangle-hook]
+                      [build-hooks/copy-element-call]
+                      ;;[build-hooks/tangle-hook]
                       ]
         :output-dir "build"
         :asset-path "/"
