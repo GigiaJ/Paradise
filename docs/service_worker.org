@@ -398,6 +398,10 @@ may immediately begin to render our images.
                                (let [room-id (.-room_id data)]
                                  (log/debug "SW requested navigation to room:" room-id)
                                  (re-frame/dispatch [:rooms/select room-id])))))))))
+
+
+
+#_(defn register-sw! [session]
   (when (exists? js/navigator.serviceWorker)
     (let [sw-container js/navigator.serviceWorker
           try-sync!    (fn []
