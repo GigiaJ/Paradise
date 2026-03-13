@@ -11,8 +11,10 @@
             [reagent.core :as r]
             [reagent.dom.client :as rdom]
             [room.room-summary :refer [build-room-summary]]
+            [room.entry :refer [build-room-actions]]
+
             [client.diff-handler :refer [apply-matrix-diffs]]
-            [utils.global-ui :refer [avatar]]
+            [utils.global-ui :refer [avatar long-press-props]]
             ["generated-compat" :as sdk :refer [RoomListEntriesDynamicFilterKind RoomListFilterCategory RoomListLoadingState]])
   (:require-macros [utils.macros :refer [ocall oget]]))
 
@@ -137,40 +139,69 @@ data associated with the RoomPreview. Otherwise it shouldn't matter.
 #+end_src
 
 
-Prior we had a very verbose and repeated diffs check, but
-as our timeline, spaces, and room list all share the same
-general patterns to handling diffs we can consolidate them and
-call them like so.
-So all we need to do is ask reframe for the current global rooms
-and call the diff check against those rooms and the updates
-to set the "new" global rooms. This will make our global list
-refresh automatically.
-Later we can apply filters on it to induce specific behavior
-like creating a DM grouping.
+This is a bit of a band-aid to allow resolving those Room Previews before the user
+has to interact with them. Ideally this shouldn't be needed just to determine the
+room type, but there is not a built-in method that works (the space room list
+in theory should be able to do this, but I've written on this in the Spaces section).
+# this was a room preview loader
 
-To add onto this, but we use a mutex to ensure that the rust-sdk
-doesn't ever end up in a state where the diffs aren't readily
-available to refresh our window. We don't slow the rust-sdk down,
-but instead establish a queue for our code to process them
-and notify reframe properly.
+
+Bit of an issue in the version of the sdk, but since we do need some state
+events (as the sdk lacks a coherent method) we must do some operations
+ourself. When we update I would imagine some of these will disappear.
+For now though, to determine the actual hierarchy we need the hierarchy
+end point itself which will easily allow us to sort Spaces.
+We do eventually need to clean up the filter as this will cause
+repeat fetches for the space rooms for now.
+
+We'll keep the re-frame portion here are well simply because I expect
+this to be removed later.
 #+begin_src clojurescript :tangle ../../src/room/room_list.cljs
-(defonce !room-mutex (atom (p/resolved nil)))
+(defn fetch-space-hierarchy [space-id]
+  (let [client @(re-frame/subscribe [:sdk/client])
+        base-url (.homeserver client)
+        token (.. client -session -accessToken)
+        ;;_ (js/console.log base-url)
+        url (str base-url "/_matrix/client/v3/rooms/" space-id "/hierarchy")]
+    (-> (js/fetch url #js {:headers #js {:Authorization (str "Bearer " token)}})
+        (p/then #(.json %))
+        (p/then (fn [json]
+                  (let [resp (js->clj json :keywordize-keys true)]
+                    (re-frame/dispatch [:rooms/process-hierarchy space-id (:rooms resp)])))))))
+#+end_src
 
-(defn apply-global-diffs-async! [updates]
-  (swap! !room-mutex
-         (fn [prev-promise]
-           (p/then prev-promise
-                   (fn []
-                     (let [db @re-frame.db/app-db
-                           current-rooms (get db :rooms [])
-                           space-service (:space-service db)]
-                       (-> (apply-matrix-diffs current-rooms updates #(parse-room space-service %))
-                           (p/then (fn [next-rooms]
-                                     (re-frame/dispatch-sync [:sdk/set-global-rooms-sync next-rooms])
-                                     (re-frame/dispatch [:sdk/set-global-rooms next-rooms])))
-                           (p/catch (fn [err]
-           (log/error "Global Diff Panic:" err)
-           nil)))))))))
+These are the reframe events and such associated with the fetch-space-hierarchy.
+#+begin_src clojurescript :tangle ../../src/room/room_list.cljs
+(re-frame/reg-event-db
+ :rooms/process-hierarchy
+ (fn [db [_ root-space-id rooms]]
+   (let [hierarchy-orders
+         (reduce
+          (fn [acc room]
+            (let [parent-id       (:room_id room)
+                  children-events (:children_state room)]
+              (if (seq children-events)
+                (let [child-map (reduce
+                                 (fn [cmap event]
+                                   (if (= (:type event) "m.space.child")
+                                     (let [child-id (:state_key event)
+                                           order    (get-in event [:content :order] "zzzz")]
+                                       (assoc cmap child-id order))
+                                     cmap))
+                                 {}
+                                 children-events)]
+                  (assoc acc parent-id child-map))
+                acc)))
+          {}
+          rooms)]
+     (log/debug "Corrected Space Orders:" hierarchy-orders)
+     (update db :space-orders merge hierarchy-orders))))
+
+(re-frame/reg-sub
+ :rooms/space-orders
+ (fn [db _]
+   (get db :space-orders {})))
+
 #+end_src
 
 
