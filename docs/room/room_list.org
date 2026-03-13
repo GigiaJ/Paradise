@@ -869,9 +869,11 @@ checking for the "kind" of room. For now though, this is plenty sufficient.
                                       :items (build-room-actions id name is-space?)}]))]
            (if is-space?
              [:div.room-drawer-header
-              {:style {:padding-left (str indent "px")}
-               :class (when is-closed? "collapsed")
-               :on-click #(re-frame/dispatch [:rooms/toggle-drawer id])}
+              (merge {:style {:padding-left (str indent "px")}
+                      :class (when is-closed? "collapsed")
+                      :on-click #(re-frame/dispatch [:rooms/toggle-drawer id])
+                      :on-context-menu #(open-menu-fn % (.-clientX %) (.-clientY %))}
+                     (long-press-props #(open-menu-fn nil %1 %2)))
               [:span.drawer-arrow "▼"]
               [:span.drawer-name (str/upper-case name)]]
              [:div.room-item
