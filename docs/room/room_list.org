@@ -832,7 +832,7 @@ checking for the "kind" of room. For now though, this is plenty sufficient.
 
 ****** TODO Pull out the CSS
 #+begin_src clojurescript :tangle ../../src/room/room_list.cljs
-(defn virtualized-room-list [room-array space-id active-room closed-drawers]
+(defn virtualized-room-list [client room-array space-id active-room closed-drawers]
   (let [active-filter @(re-frame/subscribe [:room-list/active-filter])]
     [:> Virtuoso
      {:style {:height "100%" :width "100%"}
