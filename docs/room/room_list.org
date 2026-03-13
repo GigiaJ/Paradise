@@ -297,6 +297,76 @@ and notify reframe properly.
           :home-list-controller (.controller result))))
 
 #+end_src
+
+
+
+
+
+This is our source of truth list. We don't ever mutate this with a filter
+or expect to reload it. The only mutations are the ones the Rust SDK sends
+us to update the shape of the list itself.
+We also initialize the parent evaluation here so we can build out our
+space trees
+#+begin_src clojurescript :tangle ../../src/room/room_list.cljs
+(defonce !bg-room-mutex (atom (p/resolved nil)))
+
+(defn apply-bg-rooms-diffs! [updates]
+  (swap! !bg-room-mutex
+         (fn [prev-promise]
+           (p/then prev-promise
+                   (fn []
+                     (let [db @re-frame.db/app-db
+                           current-rooms (get db :bg-rooms-array #js [])
+                           old-cache (get db :rooms-unfiltered-cache {})
+                           space-service (:space-service db)
+                           client (:client db)]
+                       (-> (apply-matrix-diffs current-rooms updates #(parse-room client space-service %))
+                           (p/then (fn [next-rooms]
+                                     (doseq [r next-rooms]
+                                       (let [id (or (.-id r) (.-roomId r) (aget r "roomId"))]
+                                         (when-let [old-room (get old-cache id)]
+                                           (when-let [pid (aget old-room "first-parent-id")]
+                                             (aset r "parents" (aget old-room "parents"))
+                                             (aset r "first-parent-id" pid)))))
+                                     (re-frame/dispatch-sync [:room-list/set-bg-rooms-sync next-rooms])
+                                     (doseq [r next-rooms]
+                                       (when-not (aget r "first-parent-id")
+                                         (let [id (or (.-id r) (.-roomId r) (aget r "roomId"))]
+                                           (enqueue-parent-check! id))))
+                                     (process-parent-queue!)))
+                           (p/catch (fn [err]
+                                      (log/error "Global Diff Panic:" err)
+                                      nil)))))))))
+
+
+
+(re-frame/reg-event-db
+ :room-list/set-bg-rooms-sync
+ (fn [db [_ rooms-list]]
+   (let [rooms-map (reduce (fn [acc r]
+                             (let [id (or (.-id r) (.-roomId r) (aget r "roomId"))]
+                               (assoc acc id r)))
+                           {}
+                           rooms-list)]
+     (assoc db
+            :bg-rooms-array rooms-list
+            :rooms-unfiltered-cache rooms-map))))
+
+(re-frame/reg-event-db
+ :room-list/save-bg-list-handle
+ (fn [db [_ result]]
+   (assoc db
+     :bg-room-list-result result
+     :bg-room-list-controller (.controller result))))
+
+(re-frame/reg-event-fx
+ :room-list/bg-rooms-diff
+ (fn [_ [_ updates]]
+   (apply-bg-rooms-diffs! updates)
+   {}))
+
+
+#+end_src
 We can simplify (and diverge) from Aurora's implementation as View models are very rigid
 and lock us into a certain pattern. Instead we'll just let reframe know the diff and let
 it handle re-rendering directly.
