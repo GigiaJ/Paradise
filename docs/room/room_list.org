@@ -500,29 +500,38 @@ This provides a method to take the room map and turn it into a usable structure
 to actually visualize our room lists. I'll come back and add more to this when
 I add the call room previewing.
 #+begin_src clojurescript :tangle ../../src/room/room_list.cljs
-(defn flatten-tree [rooms-map children-map closed-drawers parent-id depth]
-  (let [sdk-children   (get children-map parent-id)
+(defn flatten-tree [rooms-map children-map space-orders closed-drawers parent-id depth]
+  (let [sdk-children    (get children-map parent-id [])
         manual-children (->> (vals rooms-map)
-                             (filter #(= (:first-parent-id %) parent-id))
-                              (map (fn [r] {:id (or (:id r) (:roomId r)) :is-space? (:isSpace r)}))
-                              (vec))
-        child-refs (->> (concat sdk-children manual-children)
-                        (distinct-by :id)
-                        (vec))]
+                             (filter #(= (safe-get % "first-parent-id" :first-parent-id) parent-id))
+                             (map (fn [r] {:id        (or (safe-get r "id" :id) (safe-get r "roomId" :roomId))
+                                           :is-space? (safe-get r "isSpace" :isSpace)})))
+
+        orders-for-parent (get space-orders parent-id {})
+
+        child-refs      (->> (concat sdk-children manual-children)
+                             (distinct-by :id)
+                             (sort-by #(get orders-for-parent (:id %) "zzzz"))
+                             (vec))]
     (reduce
-      (fn [acc {:keys [id is-space?]}]
-        (let [rich-data (get rooms-map id)
-              item      (merge rich-data
-                               {:id id
-                                :is-space? is-space?
-                                :depth depth
-                                :name (or (:name rich-data) "Loading...")})
-              acc-with-item (conj acc item)]
-          (if (and is-space? (not (contains? closed-drawers id)))
-            (into acc-with-item (flatten-tree rooms-map children-map closed-drawers id (inc depth)))
-            acc-with-item)))
-      []
-      child-refs)))
+     (fn [acc {:keys [id is-space?]}]
+       (let [summary       (get rooms-map id)
+             item          {:id                 id
+                            :is-space?          is-space?
+                            :depth              depth
+                            :activeRoomCallParticipants (when summary (safe-get summary "activeRoomCallParticipants" :activeRoomCallParticipants))
+
+                            :name               (if summary (or (safe-get summary "name" :name) "Loading...") "Loading...")
+                            :avatar             (when summary (safe-get summary "avatar" :avatar))
+                            :unreadNotificationsCount (if summary (or (safe-get summary "unreadNotificationsCount" :unreadNotificationsCount) 0) 0)
+                            :unreadMentionsCount    (if summary (or (safe-get summary "unreadMentionsCount" :unreadMentionsCount) 0) 0)}
+             acc-with-item (conj acc item)]
+
+         (if (and is-space? (not (contains? closed-drawers id)))
+           (into acc-with-item (flatten-tree rooms-map children-map space-orders closed-drawers id (inc depth)))
+           acc-with-item)))
+     []
+     child-refs)))
 
 
 #+end_src
