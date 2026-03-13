@@ -741,6 +741,8 @@ ever do this once per room.
  (fn [db [_ room-id]]
    (room-type-call? db room-id)))
 #+end_src
+
+
 Selection is likely the biggest component of rooms as far as users are concerned.
 This mechanism actually has to fulfill a few roles such as correctly entering
 the correct state for calling or opening the correct panels given the current
@@ -807,10 +809,7 @@ entire room list to reload. Hopefully not.
          (.setFilter controller (get-rust-filter filter-id))
          (.addOnePage controller)
          {:db (assoc db :active-filter-id filter-id)})))))
-#+end_src
 
-
-#+begin_src clojurescript :tangle ../../src/room/room_list.cljs
 (defn filter-toggle-bar []
   (let [active-filter @(re-frame/subscribe [:room-list/active-filter])]
     [:div.filter-bar
@@ -820,10 +819,8 @@ entire room list to reload. Hopefully not.
         {:class    (when (= active-filter id) "active")
          :on-click #(re-frame/dispatch [:room-list/apply-filter id])}
         label])]))
+
 #+end_src
-
-
-
 
 
 Our virtualized room list. We ensure our rooms are in an array form
