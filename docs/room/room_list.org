@@ -556,6 +556,15 @@ is effectively a functioning *stub*.
  (fn [[active-id rooms-map] _]
    (when active-id
      (get rooms-map active-id))))
+
+(re-frame/reg-sub
+ :rooms/all
+ (fn [db _]
+   (let [rooms (:rooms db)]
+     (if (map? rooms) (vec (vals rooms)) (vec (or rooms []))))))
+
+
+
 #+end_src
 
 
