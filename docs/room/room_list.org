@@ -839,7 +839,7 @@ checking for the "kind" of room. For now though, this is plenty sufficient.
       :data room-array
       :endReached #(re-frame/dispatch [:room-list/paginate-global])
       :itemContent
-      (fn [index room]
+      (fn [index raw-room]
         (r/as-element
          (let [{:keys [id name is-space? depth notification-count]} room
                avatar-url (:avatar room)
