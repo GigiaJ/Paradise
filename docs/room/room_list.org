@@ -658,20 +658,8 @@ above.
  (fn [db [_ room-id members]]
    (assoc-in db [:rooms/members room-id] members)))
 
+#+end_src
 
-(re-frame/reg-event-fx
- :rooms/select
- (fn [{:keys [db]} [_ room-id]]
-   (let [current-room (:active-room-id db)]
-     (if (= current-room room-id)
-       {:db (assoc-in db [:ui :sidebar-open?] false)}
-       {:db (-> db
-                (assoc :active-room-id room-id)
-                (assoc-in [:ui :sidebar-open?] false))
-        :dispatch-n (remove nil?
-                            [(when current-room [:sdk/cleanup-timeline current-room])
-                             [:sdk/boot-timeline room-id]
-                             [:composer/load-draft room-id]])}))))
 
 (re-frame/reg-event-db
  :sdk/hydrate-rooms
@@ -699,6 +687,34 @@ above.
  :sdk/save-room-list-controller
  (fn [db [_ controller]]
    (assoc db :room-list-controller controller)))
+Selection is likely the biggest component of rooms as far as users are concerned.
+This mechanism actually has to fulfill a few roles such as correctly entering
+the correct state for calling or opening the correct panels given the current
+view state.
+#+begin_src clojurescript :tangle ../../src/room/room_list.cljs
+(re-frame/reg-event-fx
+ :rooms/select
+ (fn [{:keys [db]} [_ room-id]]
+   (let [current-room-id (:active-room-id db)
+         is-call-room?   (room-type-call? db room-id)]
+     (if (= current-room-id room-id)
+       {:db (assoc-in db [:ui :sidebar-open?] false)}
+
+       (let [new-focus  (if is-call-room? :call :timeline)
+             base-db    (-> db
+                            (assoc :active-room-id room-id)
+                            (assoc-in [:ui :sidebar-open?] false)
+                            (assoc-in [:ui :main-focus] new-focus))
+
+             dispatches (remove nil?
+                                [(when current-room-id [:sdk/cleanup-timeline current-room-id])
+                                 [:sdk/boot-timeline room-id]
+                                 [:composer/load-draft room-id]
+                                 [:ui/set-main-focus new-focus]
+                                 (when is-call-room? [:call/init-widget room-id])])]
+
+         {:db base-db
+          :dispatch-n dispatches})))))
 #+end_src
 
 
