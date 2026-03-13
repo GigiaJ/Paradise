@@ -552,17 +552,10 @@ is effectively a functioning *stub*.
 (re-frame/reg-sub
  :rooms/active-metadata
  :<- [:rooms/active-id]
- :<- [:rooms/all]
- :<- [:space-rooms]
- (fn [[active-id all-rooms space-rooms] _]
+ :<- [:rooms/unfiltered-indexed-map]
+ (fn [[active-id rooms-map] _]
    (when active-id
-     (let [all-known (into all-rooms space-rooms)]
-       (some (fn [r]
-               (let [rid (or (:id r)
-                             (try (.-roomId r) (catch :default _ nil))
-                             (try (.-id r) (catch :default _ nil)))]
-                 (when (= rid active-id) r)))
-             all-known)))))
+     (get rooms-map active-id))))
 #+end_src
 
 
