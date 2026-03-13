@@ -776,7 +776,6 @@ While setting filters isn't the most resource friendly implementation
 for now it is an easy and clean way to provide a sorted list to the
 user. We'll have to see how it scales as I suspect it is causing the
 entire room list to reload. Hopefully not.
-*** TODO Investigate the behavior of Room Filters
 #+begin_src clojurescript :tangle ../../src/room/room_list.cljs
 (re-frame/reg-event-db
  :room-list/set-filter
