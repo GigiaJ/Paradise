@@ -545,12 +545,6 @@ is effectively a functioning *stub*.
    (:active-room-id db)))
 
 (re-frame/reg-sub
- :rooms/all
- (fn [db _]
-   (let [rooms (:rooms db)]
-     (if (map? rooms) (vec (vals rooms)) (vec (or rooms []))))))
-
-(re-frame/reg-sub
  :space-rooms
  (fn [db _]
    (vec (or (:space-rooms db) []))))
