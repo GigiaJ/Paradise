@@ -94,25 +94,45 @@ remove it from the queue as well.
                         (js/setTimeout process-parent-queue! 2000)))))))))
 
 #+end_src
+
+
+
+
+
 Parse the room into a useful CLJS form. Otherwise we have to work with
 a JS room which isn't ideal. We could try being a bit more consistent
 on this stipulation... but it isn't entirely essential now.
+
+Unsettlingly, we use the space-service to determine the parentage
+as we can't appropriately populate the SpaceRoomList.
+
+Adding to this we also generate a room preview right here as it
+makes more sense to do so during the room parsing. Odds are
+in future versions we can more easily grab the room type, but
+this is convenient enough... I guess... for now.
+
+It is important to note we are leaving this as an unfulfilled promise.
+If we tried to fulfill them all right here we add a potentially
+significant delay that the user doesn't really care about. Instead
+we can resolve that promise whenever we actually want to interact with
+data associated with the RoomPreview. Otherwise it shouldn't matter.
+
 #+begin_src clojurescript :tangle ../../src/room/room_list.cljs
-(defn parse-room [space-service room-interface]
+(defn parse-room [client space-service room-interface]
   (p/let [room-info     (if (fn? (.-roomInfo room-interface)) (.roomInfo room-interface) nil)
           latest-event  (.latestEvent room-interface)
           room-id       (.-id room-info)
-           parents (if space-service
-                    (.joinedParentsOfChild space-service room-id)
-                    (p/resolved []))
-          first-parent (get parents 0)
-          first-parent-id (if first-parent (.-roomId first-parent) nil)
+
           ]
-    (let [summary (build-room-summary room-interface room-info latest-event)]
+
+    (let [summary (build-room-summary room-interface room-info latest-event)
+          room-preview  (when (and client (exists? (.-getRoomPreviewFromRoomId client)))
+                          (try
+                            (p/promise (.getRoomPreviewFromRoomId client room-id #js []))
+                          (catch :default e
+                            (js/console.error "FFI Call Failed for:" room-id e))))]
       (aset summary "raw-room" room-interface)
-      (aset summary "parents" parents)
-      (log/debug summary)
-      (aset summary "first-parent-id" first-parent-id)
+      (aset summary "room-preview" room-preview)
       summary)))
 #+end_src
 
