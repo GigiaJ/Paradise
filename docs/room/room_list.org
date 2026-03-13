@@ -622,27 +622,14 @@ above.
  (fn [db _]
    (get-in db [:ui :closed-drawers] #{})))
 
-(re-frame/reg-event-fx
- :sdk/global-rooms-diff
- (fn [_ [_ updates]]
-   (apply-global-diffs-async! updates)
-   {}))
 
-(re-frame/reg-event-db
- :sdk/set-global-rooms-sync
- (fn [db [_ rooms]]
-   (assoc db :rooms rooms)))
 
-(re-frame/reg-event-fx
- :sdk/set-global-rooms
- (fn [_ [_ rooms]]
-   (let [top-room-ids (take 2 (map #(.-id %) rooms))]
-     {:dispatch [:sdk/preload-timelines top-room-ids]})))
+(re-frame/reg-sub
+ :rooms/unfiltered-indexed-map
+ (fn [db _]
+   (get db :rooms-unfiltered-cache {})))
 
-(re-frame/reg-event-db
- :sdk/room-list-loading
- (fn [db [_ state-obj]]
-   (assoc db :rooms-loading? (= "NotLoaded" (.-tag state-obj)))))
+
 
 (re-frame/reg-sub
  :rooms/active-room-members
