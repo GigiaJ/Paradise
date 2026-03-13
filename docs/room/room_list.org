@@ -718,17 +718,7 @@ the method we have for all other rooms.
 
 #+end_src
 
-(re-frame/reg-event-db
- :sdk/save-room-list-handle
- (fn [db [_ result]]
-   (assoc db
-     :room-list-result result
-     :room-list-controller (.controller result))))
 
-(re-frame/reg-event-db
- :sdk/save-room-list-controller
- (fn [db [_ controller]]
-   (assoc db :room-list-controller controller)))
 Selection is likely the biggest component of rooms as far as users are concerned.
 This mechanism actually has to fulfill a few roles such as correctly entering
 the correct state for calling or opening the correct panels given the current
