@@ -841,13 +841,32 @@ checking for the "kind" of room. For now though, this is plenty sufficient.
       :itemContent
       (fn [index raw-room]
         (r/as-element
-         (let [{:keys [id name is-space? depth notification-count]} room
-               avatar-url (:avatar room)
-               _ (log/debug room)
-               depth   (or depth 0)
-               indent  (* depth 12)
-               _ (js/console.log is-people?)
-               is-closed? (contains? closed-drawers id)]
+         (let [room              (if (map? raw-room) raw-room (js->clj raw-room :keywordize-keys true))
+               id                (or (:id room) (:roomId room))
+               name              (or (:name room) "Loading...")
+               is-space?         (or (:is-space? room) (:isSpace room))
+               depth             (or (:depth room) 0)
+               indent            (* depth 12)
+               is-closed?        (contains? closed-drawers id)
+               is-call?          (room-type-call? @re-frame.db/app-db id)
+               notif-count       (or (:notification-count room) (:unreadNotificationsCount room) 0)
+               unread?           (pos? notif-count)
+               highlight-count   (or (:highlight-count room) (:unreadMentionsCount room) 0)
+               highlight?        (pos? highlight-count)
+               avatar-url        (or (:avatar room) (:avatarUrl room))
+
+               call-participants (or (:activeRoomCallParticipants room) [])
+              _ (log/error call-participants)
+
+               has-call?         (seq call-participants)
+               open-menu-fn      (fn [e mx my]
+                                   (when e
+                                     (.preventDefault e)
+                                     (.stopPropagation e))
+                                   (re-frame/dispatch
+                                    [:context-menu/open
+                                     {:x mx :y my
+                                      :items (build-room-actions id name is-space?)}]))]
            (if is-space?
              [:div.room-drawer-header
               {:style {:padding-left (str indent "px")}
