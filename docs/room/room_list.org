@@ -483,6 +483,16 @@ This is just a simple filter method to deduplicate
                    (do (swap! !seen conj k)
                        true))))
              coll)))
+
+
+(defn safe-get [obj k-str k-kw]
+  (if (map? obj)
+    (get obj k-kw)
+    (let [v (aget obj k-str)]
+      (if (undefined? v)
+        (aget obj (name k-kw))
+        v))))
+
 #+end_src
 
 
