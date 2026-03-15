@@ -6,6 +6,7 @@
                       ;;[build-hooks/generate-lang-map]
                       [build-hooks/include-root-files]
                       [build-hooks/include-themes]
+                      [build-hooks/include-css]
                       [build-hooks/copy-wasm]
                       [build-hooks/copy-element-call]
                       ;;[build-hooks/tangle-hook]
