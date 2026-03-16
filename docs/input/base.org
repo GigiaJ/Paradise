@@ -57,6 +57,9 @@ We'll need a way to generically upload to Matrix for anything from updating avat
 #+end_src
 
 
+
+**** File Upload
+
 Through a bit of trial and error (and exploring the FFI bindings)
 we can start to flesh out a file upload. Now direct file uploading is almost
 always undesirable. However, it does help us get a feel for the most complex
@@ -323,60 +326,156 @@ forward.
  (fn [db _]
    (:uploading-files? db false)))
 
+(re-frame/reg-event-db
+ :input/set-context
+ (fn [db [_ room-id mode target-item]]
+   (assoc-in db [:input-context room-id]
+             {:mode mode
+              :target target-item})))
+
+(re-frame/reg-event-db
+ :input/clear-context
+ (fn [db [_ room-id]]
+   (update db :input-context dissoc room-id)))
+
+(re-frame/reg-sub
+ :input/context
+ (fn [db [_ room-id]]
+   (get-in db [:input-context room-id])))
+#+end_src
+
+
+**** Inline Editor Component
+
+This is the editor used for editing to be specific. Outside that it likely won't
+be used.
+
+#+begin_src clojurescript :tangle ../../src/input/base.cljs
+(defn inline-editor [item active-id]
+  (r/with-let [!editor (r/atom nil)]
+    (fn [item active-id]
+      (let [m-content    (get-in item [:content :inner :content])
+            raw-html     (:html m-content)
+            initial-text (if (seq raw-html)
+                           (prepare-html-for-editor raw-html)
+                           (or (:body m-content) ""))
+            _ (log/debug initial-text)
+            _ (log/debug raw-html)
+            ]
+        [:div.inline-editor-wrapper
+         [:div.inline-editor-box
+          [:> tiptap-component
+           #js {:activeId active-id
+                :loadedText initial-text
+                :onEditorReady #(reset! !editor %)
+                :onSend (fn [text html]
+                          (let [matrix-html (get-matrix-formatted-body @!editor)]
+                            (re-frame/dispatch [:msg/edit active-id item text matrix-html])
+                            (re-frame/dispatch [:input/clear-context active-id])))}]]
+         [:div.inline-editor-hint
+          "escape to "
+          [:span.link-btn {:on-click #(re-frame/dispatch [:input/clear-context active-id])} "cancel"]
+          " • enter to "
+          [:span.link-btn {:on-click (fn []
+                                       (when-let [ed @!editor]
+                                         (let [text (.getText ed)
+                                               matrix-html (get-matrix-formatted-body ed)]
+                                           (re-frame/dispatch [:msg/edit active-id item text matrix-html])
+                                           (re-frame/dispatch [:input/clear-context active-id]))))} "save"]]]))))
+#+end_src
+
+
+**** Message Input Component
+
+This is the main composer the user will interact with.
+It is important that this provides a clean and fluid experience.
+Ideally, we should break this apart more later.
+
+#+begin_src clojurescript :tangle ../../src/input/base.cljs
 (defn message-input []
-  (r/with-let [!picker-open? (r/atom false)]
+  (r/with-let [!picker-open? (r/atom false)
+               !editor       (r/atom nil)
+               !sug-command  (r/atom nil)]
     (fn []
       (let [active-id   @(re-frame/subscribe [:rooms/active-id])
             uploading?  @(re-frame/subscribe [:input/uploading?])
             attachments @(re-frame/subscribe [:composer/attachments active-id])
-            loaded-text @(re-frame/subscribe [:composer/loaded-text active-id])]
-        [:div.timeline-input-outer {:style {:position "relative"}}
+            loaded-text @(re-frame/subscribe [:composer/loaded-text active-id])
+            context     @(re-frame/subscribe [:input/context active-id])
+            _ (log/debug context)]
+        [:div.timeline-input-outer
+         [suggestion-menu
+          (fn [item]
+            (when-let [cmd @!sug-command]
+              (cmd #js {:props item})))]
          (when @!picker-open?
            [emoji-sticker-board
-            {:on-send-sticker
+            {:on-close #(reset! !picker-open? false)
+             :on-send-sticker
              (fn [mxc alt-text info]
                (re-frame/dispatch [:sdk/send-sticker active-id mxc alt-text info])
                (reset! !picker-open? false))
              :on-insert-emoji
-             (fn [shortcode]
-               ;; TODO: We need to tell Tiptap to insert this
-               (js/console.log "Need to insert into Tiptap:" shortcode)
+             (fn [shortcode url]
+               (when-let [ed @!editor]
+                 (-> ed .chain .focus
+                     (.insertContent #js {:type "customEmote"
+                                          :attrs #js {:shortcode shortcode
+                                                      :src (mxc->url url)}})
+                     .run))
                (reset! !picker-open? false))}])
-         [:div.timeline-input-wrapper {:style {:display "flex" :flex-direction "column"}}
+         (when (and context (= (:mode context) :reply))
+           [:div.input-context-banner
+            [:div.context-info
+             [:span (str "Replying to " (-> context :target :sender-name))]]
+            [:button.context-cancel-btn
+             {:on-click #(re-frame/dispatch [:input/clear-context active-id])} "✖"]])
+
+         [:div.timeline-input-wrapper
           (when (seq attachments)
-            [:div.composer-attachments {:style {:display "flex" :flex-direction "row" :overflow-x "auto"
-                                                :gap "10px" :padding "10px" :background "rgba(0,0,0,0.2)"}}
+            [:div.composer-attachments
              (doall
               (map-indexed (fn [idx att]
                              ^{:key (str "att-" idx)}
                              [attachment-preview active-id att idx])
                            attachments))])
+
           (when uploading?
             [:div.upload-indicator
              [:span.upload-text "Uploading file..."]
              [:div.upload-progress-bar [:div.upload-progress-fill]]])
-          [:div.input-row {:style {:display "flex" :flex-direction "row" :align-items "center" :width "100%"}}
-           [:div.editor-container {:style {:flex-grow 1 :min-width 0 :padding "8px 12px"}}
+
+          [:div.timeline-input-row
+           [:label.timeline-upload-btn
+            {:title "Upload a file"}
+            [:input {:type "file"
+                     :multiple true
+                     :style {:display "none"}
+                     :on-change (fn [e]
+                                  (let [files      (.. e -target -files)
+                                        file-array (js/Array.from files)]
+                                    (when (seq file-array)
+                                      (re-frame/dispatch [:sdk/handle-file-drop active-id file-array]))
+                                    (set! (.-value (.-target e)) "")))}]
+            "➕"]
+           [:div.timeline-editor-container
             [:> tiptap-component
              #js {:activeId active-id
                   :loadedText loaded-text
                   :onChange (fn [text html]
                               (re-frame/dispatch [:composer/on-change active-id text html]))
                   :onSend (fn [text html]
-                            (re-frame/dispatch [:composer/submit active-id text html attachments]))
+                            (let [matrix-html (get-matrix-formatted-body @!editor)]
+                              (re-frame/dispatch [:composer/submit active-id text matrix-html])))
                   :onFiles (fn [files]
                              (let [file-array (js/Array.from files)]
-                               (re-frame/dispatch [:sdk/handle-file-drop active-id file-array])))}]]
-           [:button.emoji-toggle-btn
+                               (re-frame/dispatch [:sdk/handle-file-drop active-id file-array])))
+                  :onEditorReady #(reset! !editor %)
+                  :onSuggestionStart (fn [cmd] (reset! !sug-command cmd))
+                  :onSuggestionExit  (fn [] (reset! !sug-command nil))}]]
+           [:button.timeline-emoji-btn
             {:on-click (fn [e]
                          (.stopPropagation e)
-                         (swap! !picker-open? not))
-             :style {:padding "10px 16px"
-                     :background "transparent"
-                     :border "none"
-                     :cursor "pointer"
-                     :font-size "1.4rem"
-                     :flex-shrink 0}}
+                         (swap! !picker-open? not))}
             "😀"]]]]))))
-
 #+end_src
