@@ -48,6 +48,8 @@ actual UI components themselves.
 #+end_src
 
 
+**** Reframe DB declaration
+
 For testing purposes we'd want to stage a general UI to template against.
 This also serves as a good example of where to start with modifying the UI
 #+begin_src clojurescript :tangle ../src/app.cljs
@@ -72,7 +74,6 @@ This also serves as a good example of where to start with modifying the UI
    })
 #+end_src
 
-
 This is the initializer for the global reframe object
 For some more info you can look here:
 https://day8.github.io/re-frame/application-state/
@@ -83,58 +84,556 @@ https://day8.github.io/re-frame/application-state/
    default-db))
 #+end_src
 
+
+**** UI Reframe Events and Subscriptions
+
+
 #+begin_src clojurescript :tangle ../src/app.cljs
-(re-frame/reg-sub
+#_(re-frame/reg-sub
  :auth/status
  (fn [db _] (:auth-status db)))
 
-(re-frame/reg-sub
+#_(re-frame/reg-sub
  :auth/error
  (fn [db _] (:login-error db)))
 
-(re-frame/reg-event-fx
- :app/bootstrap
- (fn [{:keys [db]} _]
-   (do
-     (log/debug "Bootstrapping")
-     (bootstrap!
-    (fn [client session-data]
-      (if client
-             (re-frame/dispatch [:auth/login-success client session-data])
-        #_(p/let [_ (re-frame/dispatch-sync [:sdk/set-client raw-client])
-                _ (login/start-sync! raw-client)
-                _ (register-sw! (.-accessToken (.-session session-json)))
+(re-frame/reg-event-db
+ :ui/set-sidebar
+ (fn [db [_ open?]]
+   (assoc-in db [:ui :sidebar-open?] open?)))
 
-                ]
-          nil)
-        (re-frame/dispatch [:auth/login-failure nil])
-        ))))
-   {:db (assoc db :auth-status :checking)}))
+(re-frame/reg-event-db
+ :ui/toggle-sidebar
+ (fn [db _]
+   (update-in db [:ui :sidebar-open?] not)))
+
+(re-frame/reg-sub
+ :ui/sidebar-open?
+ (fn [db _]
+   (get-in db [:ui :sidebar-open?] false)))
+
+#_
+(re-frame/reg-event-db
+ :ui/set-main-focus
+ (fn [db [_ focus]]
+   (assoc db :main-focus focus)))
+
+#_
+(re-frame/reg-event-db
+ :ui/set-side-panel
+ (fn [db [_ panel]]
+   (assoc db :side-panel panel)))
+
+#_(re-frame/reg-sub
+ :ui/main-focus
+ (fn [db _]
+   (:main-focus db :timeline)))
+
+#_
+(re-frame/reg-sub
+ :ui/side-panel
+ (fn [db _]
+   (:side-panel db nil)))
+
+(re-frame/reg-event-db
+ :ui/window-resized
+ (fn [db [_ width]]
+   (assoc-in db [:ui :mobile?] (< width 768))))
+
+(re-frame/reg-sub
+ :ui/mobile?
+ (fn [db _]
+   (get-in db [:ui :mobile?] false)))
+
+
 
 #+end_src
+
+
+**** CSS Swapping
+
+We want to provide style switching (and even layout behavior later)
+This at least begins starting that off by providing some useful enough defaults.
+
+#+begin_src clojurescript :tangle ../src/app.cljs
+(re-frame/reg-fx
+ :ui/hotswap-css
+ (fn [new-filename]
+   (let [link (.getElementById js/document "style")]
+     (if (and link (= (.-rel link) "stylesheet"))
+       (do
+         (set! (.-href link) new-filename)
+         (log/info "Swapped CSS to:" new-filename))
+       (log/error "Could not find stylesheet link with ID 'style'")))))
+
+
+(re-frame/reg-event-fx
+ :ui/switch-theme
+ (fn [{:keys [db]} [_ theme-name]]
+   (let [filename (case theme-name
+                    :discord "cordlike.css"
+                    :matrix  "matrix.css"
+                    :retro   "retro.css"
+                    "app.css")]
+     {:db (assoc db :ui/current-theme theme-name)
+      :ui/hotswap-css (str "css/" filename)})))
+#+end_src
+
+
+
+**** Placeholders
+
+#+begin_src clojurescript :tangle ../src/app.cljs
+#_(defn call-view []
+  [:div.call-view {:style {:padding "20px" :background "#222" :color "#fff" :height "100%"}}
+   [:h2 "Active Call"]
+   [:button {:on-click #(re-frame/dispatch [:ui/set-main-focus :timeline])} "End Call"]])
+
+(defn thread-view []
+  [:div.thread-view {:style {:padding "20px" :height "100%"}}
+   [:h2 "Thread Context"]
+   [:button {:on-click #(re-frame/dispatch [:ui/set-main-focus :timeline])} "Back to Timeline"]])
+
+(defn member-list []
+  [:div.member-list-wrapper
+   [:ul.member-items
+    [:li "@alice:matrix.org"]
+    [:li "@bob:matrix.org"]]])
+
+(defn thread-list []
+  [:div.thread-list {:style {:padding "10px"}}
+   [:h3 "Active Threads"]
+   [:div "Thread 1..."]
+  [:div "Thread 2..."]])
+#+end_src
+
+
+
+**** Boot Screen / Loading Screen
+
+We need a boot up screen for those moments where we're not quite ready.
+Making sure this is dynamic, but abstract is important for now.
+#+begin_src clojurescript :tangle ../src/app.cljs
+(defn booting-screen []
+  [:div.boot-container
+   [:div.boot-content
+    [:div.boot-logo-wrapper
+     [:div.paradise-logo "P"]]
+    [:div.boot-loading-text
+     [:span "Taking you to Paradise"]
+     [:span.dot-one "."]
+     [:span.dot-two "."]
+     [:span.dot-three "."]]]])
+#+end_src
+
+
+
+
+**** Base CSS
+
+#+begin_src css :tangle ../css/app.css
+
+@import "icons.css";
+@import "room-list-entry.css";
+@import "room-list.css";
+@import "room-header.css";
+@import "avatar.css";
+@import "settings.css";
+@import "emojis.css";
+@import "settings.css";
+@import "composer.css";
+@import "timeline.css";
+@import "space.css";
+@import "space-icons.css";
+@import "calls.css";
+@import "container.css";
+@import "attachments.css";
+@import "drafts.css";
+@import "global.css";
+@import "lightbox.css";
+@import "login.css";
+@import "misc.css";
+@import "keyframes.css";
+
+/*
+@import "../themes/cordlike.css";
+*/
+
+html, body {
+    margin: 0;
+    padding: 0;
+    width: 100vw;
+    height: 100vh;
+    overflow: hidden;
+    box-sizing: border-box;
+    background-color: #313338;
+    color: #dbdee1;
+    font-family: sans-serif;
+}
+
+*, *::before, *::after {
+    box-sizing: inherit;
+}
+
+#app {
+    height: 100%;
+    width: 100%;
+}
+
+.app-root {
+    display: flex;
+    height: 100vh;
+    width: 100vw;
+    overflow: hidden;
+}
+
+
+
+
+.body {
+    color: #dbdee1;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+}
+
+.body.formatted code {
+    background-color: #2d2d2d;
+    color: #f8f8f2;
+    padding: 0.2em 0.4em;
+    border-radius: 4px;
+    font-family: "fira code", monospace;
+    font-size: 0.9em;
+}
+
+.body.formatted blockquote {
+    border-left: 4px solid #4a4a4a;
+    margin: 0;
+    padding-left: 1em;
+    color: #a0a0a0;
+}
+
+.body.formatted a {
+    color: #58a6ff;
+    text-decoration: none;
+}
+
+.body.formatted a:hover {
+    text-decoration: underline;
+}
+
+
+
+[data-virtuoso-scroller="true"]::-webkit-scrollbar-thumb {
+    background-clip: padding-box;
+    border: 4px solid transparent;
+    border-radius: 20px;
+    background-color: transparent;
+    transition: background-color 0.2s ease;
+}
+
+[data-virtuoso-scroller="true"]:hover::-webkit-scrollbar-thumb,
+.is-scrolling [data-virtuoso-scroller="true"]::-webkit-scrollbar-thumb {
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+[data-virtuoso-scroller="true"]::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(255, 255, 255, 0.4) !important;
+}
+
+[data-virtuoso-scroller="true"]::-webkit-scrollbar-thumb:active {
+    background-color: rgba(255, 255, 255, 0.6) !important;
+}
+
+
+.mobile-menu-btn {
+    display: none;
+    background: none;
+    border: none;
+    color: #dbdee1;
+    font-size: 24px;
+    margin-right: 12px;
+    cursor: pointer;
+}
+
+@media (max-width: 768px) {
+    .mobile-menu-btn {
+        display: block;
+    }
+}
+
+
+@media (max-width: 768px) {
+    .app-root {
+        position: relative;
+        overflow: hidden;
+    }
+
+    .timeline-container {
+        width: 100vw;
+        flex: 1;
+    }
+
+    .sidebar-spaces,
+    .sidebar-rooms {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        z-index: 100;
+        transform: translateX(-100%);
+        transition: transform 0.3s ease;
+    }
+
+    .sidebars-open .sidebar-spaces {
+        transform: translateX(0);
+    }
+
+    .sidebars-open .sidebar-rooms {
+        transform: translateX(72px);
+    }
+
+    .mobile-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 90;
+        animation: fadeIn 0.2s ease;
+    }
+}
+
+#+end_src
+
+
+
+**** Application Layout
 
 Now this is the actual code that handles rendering. Short, yeah?
 It doesn't actually need to be overtly verbose. Reframe let's us
 just focus on the part we actually care about. The benefits of Clojure
 providing the encapsulation and parsing for us.
+
+
 #+begin_src clojurescript :tangle ../src/app.cljs
-(defn main-layout []
-  (let [auth-status @(re-frame/subscribe [:auth/status])
-        _ (log/debug auth-status)]
+#_(defn main-layout []
+  [:div.app-root
+   [element-call-test]])
+
+#_(defn main-layout []
+  (let [
+        auth-status   @(re-frame/subscribe [:auth/status])
+        sidebar-open? @(re-frame/subscribe [:ui/sidebar-open?])
+        main-focus    @(re-frame/subscribe [:container/main-focus])
+        side-panel    @(re-frame/subscribe [:container/side-panel])
+        active-room   @(re-frame/subscribe [:rooms/active-id])]
     (case auth-status
-      :checking
-      [:div.flex.h-screen.items-center.justify-center.bg-gray-900.text-white
-       "Booting Matrix SDK..."]
-      (:logged-out :authenticating)
-      [login-screen]
+      :checking [booting-screen]
+      (:logged-out :authenticating) [login-screen]
       :logged-in
-      [:div.app-root
-       [spaces-sidebar]
-       [room-list]
-       [timeline]]
+      [:<>
+       [persistent-call-container]
+
+       [:div.app-root {:class (when sidebar-open? "sidebars-open")}
+        [spaces-sidebar]
+        [room-list]
+
+        (when sidebar-open?
+          [:div.mobile-overlay {:on-click #(re-frame/dispatch [:ui/set-sidebar false])}])
+
+        [:div.room-layout
+         {:style {:display "grid"
+                  :flex "1"
+                  :min-width "0"
+                  :grid-template-columns (if side-panel "1fr 350px" "1fr")
+                  :height "100%"}}
+
+         [:div.main-content
+          (case main-focus
+            :call     [call-view active-room]
+            :thread   [thread-view]
+            :timeline [timeline])]
+
+         (when-let [panel side-panel]
+           [:div.sidebar
+            {:style {:display "flex"
+                     :flex-direction "column"
+                     :height "100%"
+                     :background "var(--surface-1)"
+                     :border-left "1px solid var(--border-color)"}}
+            (when (contains? #{:members :threads :search :pins :timeline} panel)
+              [:div.sidebar-header
+               {:style {:display "flex"
+                        :align-items "center"
+                        :justify-content "space-between"
+                        :padding "0 16px"
+                        :height "48px"
+                        :border-bottom "1px solid var(--border-color)"}}
+               [:h3.sidebar-title
+                {:style {:font-size "0.9rem" :text-transform "uppercase" :letter-spacing "0.05rem"}}
+                (case panel
+                  :members "Members"
+                  :threads "Threads"
+                  :search  "Search"
+                  :pins    "Pinned Messages"
+                  :timeline "")]
+               [:button.sidebar-close
+                {:style {:background "transparent" :border "none" :color "var(--text-secondary)" :cursor "pointer"}
+                 :on-click #(re-frame/dispatch [:container/set-side-panel nil])}
+                "✕"]])
+
+            [:div.sidebar-content
+             {:style {:flex 1 :overflow "hidden"}}
+             (case panel
+               :timeline [timeline :compact? true :hide-header? true]
+               :members  [member-list]
+               :threads  [thread-list]
+      ;;:search   [search-view]
+      ;;:pins     [pins-view]
+               )]])
+
+         #_(when-let [panel side-panel]
+             [:div.sidebar
+              [:div.sidebar-header
+               #_[:h3.sidebar-title
+                  (case panel
+                    :timeline "Room Chat"
+                    :members "Members"
+                    :threads "Threads")]
+               [:button.sidebar-close {:on-click #(re-frame/dispatch [:ui/set-side-panel nil])} "✕"]]
+
+              [:div.sidebar-content
+               (case panel
+                 :timeline [timeline :compact? false]
+                 :members  [member-list]
+                 :threads  [thread-list])]])]]
+
+       [settings-modal]
+       [global-context-menu]
+      
+
+;;       [global-reaction-picker]
+       [image-lightbox]]
       [:div "Unknown State"])))
+
+(defn main-layout []
+  (let [auth-status   @(re-frame/subscribe [:auth/status])
+        sidebar-open? @(re-frame/subscribe [:ui/sidebar-open?])
+        main-focus    @(re-frame/subscribe [:container/main-focus])
+        side-panel    @(re-frame/subscribe [:container/side-panel])
+        active-room   @(re-frame/subscribe [:rooms/active-id])]
+    (case auth-status
+      :checking [booting-screen]
+      (:logged-out :authenticating) [login-screen]
+      :logged-in
+      [:<>
+       [persistent-call-container]
+
+       [:div.app-root {:class (when sidebar-open? "sidebars-open")}
+        [spaces-sidebar]
+        [room-list]
+
+        (when sidebar-open?
+          [:div.mobile-overlay {:on-click #(re-frame/dispatch [:ui/set-sidebar false])}])
+
+        [:div.room-layout
+         {:style {:display "grid"
+                  :flex "1"
+                  :min-width "0"
+                  :grid-template-columns (if side-panel "1fr 350px" "1fr")
+                  :height "100%"}}
+
+         [:div.main-content
+          (case main-focus
+            :call     [call-view active-room]
+            :thread   [thread-view]
+            :timeline [timeline])]
+
+         (when-let [panel side-panel]
+           [:div.sidebar
+            {:style {:display "flex"
+                     :flex-direction "column"
+                     :height "100%"
+                     :background "var(--surface-1)"
+                     :border-left "1px solid var(--border-color)"}}
+            (when (contains? #{:members :threads :search :pins :timeline} panel)
+              [:div.sidebar-header
+               {:style {:display "flex"
+                        :align-items "center"
+                        :justify-content "space-between"
+                        :padding "0 16px"
+                        :height "48px"
+                        :border-bottom "1px solid var(--border-color)"}}
+               [:h3.sidebar-title
+                {:style {:font-size "0.9rem" :text-transform "uppercase" :letter-spacing "0.05rem"}}
+                (case panel
+                  :members "Members"
+                  :threads "Threads"
+                  :search  "Search"
+                  :pins    "Pinned Messages"
+                  :timeline "")]
+               [:button.sidebar-close
+                {:style {:background "transparent" :border "none" :color "var(--text-secondary)" :cursor "pointer"}
+                 :on-click #(re-frame/dispatch [:container/set-side-panel nil])}
+                "✕"]])
+
+            [:div.sidebar-content
+             {:style {:flex 1 :overflow "hidden"}}
+             (case panel
+               :timeline [timeline :compact? true :hide-header? true]
+               :members  [member-list]
+               :threads  [thread-list]
+      ;;:search   [search-view]
+      ;;:pins     [pins-view]
+               )]])
+
+         #_(when-let [panel side-panel]
+             [:div.sidebar
+              [:div.sidebar-header
+               #_[:h3.sidebar-title
+                  (case panel
+                    :timeline "Room Chat"
+                    :members "Members"
+                    :threads "Threads")]
+               [:button.sidebar-close {:on-click #(re-frame/dispatch [:ui/set-side-panel nil])} "✕"]]
+
+              [:div.sidebar-content
+               (case panel
+                 :timeline [timeline :compact? false]
+                 :members  [member-list]
+                 :threads  [thread-list])]])]]
+
+       [settings-modal]
+       [global-context-menu]
+
+       #_[satellite-overlay
+          (case active-type
+            :emoji-picker emoji-sticker-board
+            :user-info    user-summary-card
+            nil)]
+
+;;       [global-reaction-picker]
+       [image-lightbox]]
+      [:div "Unknown State"])))
+
+
+
 #+end_src
 
+
+**** Resizing the Application
+
+
+#+begin_src clojurescript :tangle ../src/app.cljs
+(defn init-window-size-listener! []
+  (re-frame/dispatch [:ui/window-resized (.-innerWidth js/window)])
+
+  (let [resize-handler (goog.functions/debounce
+                        #(re-frame/dispatch [:ui/window-resized (.-innerWidth js/window)])
+                        150)]
+    (.addEventListener js/window "resize" resize-handler)))
+
+#+end_src
+
+
+**** Mounting the Application
 
 This is to mount our application at the element with the ID "root" inside
 our index.html. It's effectively just an attachment point for us to latch
