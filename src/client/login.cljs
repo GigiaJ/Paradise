@@ -1,17 +1,15 @@
 (ns client.login
   (:require
    [taoensso.timbre :as log]
-   [client.view-models :refer [create-room-list-vm]]
    [reagent.core :as r]
    [promesa.core :as p]
    [re-frame.core :as re-frame]
-   [client.state :refer [sdk-world mount-vm! unmount-vm!]]
+   [client.state :refer [sdk-world]]
    [client.session-store :refer [SessionStore]]
-   [client.sdk-ctrl :as sdk-ctrl]
-   [spaces.bar :refer [init-space-service!]]
-   [room.room-list :as rl];;:refer [parse-room apply-diffs! create-room-update-listener setup-room-list-adapter!]]
+   [navigation.spaces.bar :refer [init-space-service!]]
+   [navigation.rooms.room-list :as rl];;:refer [parse-room apply-diffs! create-room-update-listener setup-room-list-adapter!]]
    ["generated-compat" :as sdk :refer [RoomListEntriesDynamicFilterKind]]
-   ["@element-hq/web-shared-components" :refer [RoomListView BaseViewModel]])
+   )
   (:require-macros [utils.macros :refer [ocall oget]]))
 
 (defonce sdk-ready? (r/atom false))
@@ -25,15 +23,24 @@
                    (log/error "WASM Load Failed:" e)
                    (swap! sdk-world assoc :loading? false)))))
 
+
 (defn start-sync! [client]
   (p/let [sync-service (-> (.syncService client) (.withOfflineMode) (.finish))
           rls-instance (.roomListService sync-service)
           room-list (.allRooms rls-instance)
           _ (rl/start-room-list-sync! room-list)
           _ (.start sync-service)
-          _ (init-space-service! client)
+         ;; cached-rooms (try (.rooms client) (catch :default _ []))
+        ;;  top-rooms    (take 5 cached-rooms)
+            _ (init-space-service! client)
           ]
-      (log/debug "Sync started.")))
+    #_(doseq [room top-rooms]
+      (let [room-id (or (try (.roomId room) (catch :default _ nil))
+                        (try (.id room) (catch :default _ nil)))]
+        (when room-id
+          (log/debug "HIT")
+          (re-frame/dispatch [:sdk/preload-timeline-safe room-id]))))
+    ))
 
 (defn build-client [hs passphrase? store-id? restore-or-login!]
   (-> (p/let [
@@ -80,16 +87,26 @@
           user-id (first (js/Object.keys sessions))]
     (or (aget sessions user-id) nil)))
 
-(defn bootstrap! [on-complete]
-  (-> (p/let [_      (init-sdk!)
-              data?  (maybe-local-session)
-              client (when data?
-                       (restore-client! (.-session data?)
-                                        (.-passphrase data?)
-                                        (.-storeId data?)))
-              _ (log/debug data?)
-              ]
-        (on-complete client data?))
-      (p/catch (fn [e]
-                 (log/error "Bootstrap/Restore failed:" e)
-                 (on-complete nil)))))
+
+(defn get-specific-session [target-user-id]
+  (p/let [store    (SessionStore.)
+          sessions (.loadSessions store)]
+    (or (aget sessions target-user-id) nil)))
+
+(defn bootstrap! 
+  ([on-complete]
+   (bootstrap! nil on-complete))
+  ([target-user-id on-complete]
+   (-> (p/let [_      (init-sdk!)
+               data?  (if target-user-id
+                        (get-specific-session target-user-id)
+                        (maybe-local-session))
+               client (when data?
+                        (restore-client! (.-session data?)
+                                         (.-passphrase data?)
+                                         (.-storeId data?)))]
+         (log/debug "Restored session for:" (if data? (.. data? -session -userId) "None"))
+         (on-complete client data?))
+       (p/catch (fn [e]
+                  (log/error "Bootstrap/Restore failed:" e)
+                  (on-complete nil))))))
