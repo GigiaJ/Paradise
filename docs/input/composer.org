@@ -2,10 +2,14 @@
 ** Composer
 
 
+**** Preface
+
 The composer usually refers to the input area for sending messages in a room.
 It itself can have some flavoring to it, but for our cases we're going to
 just keep this to defining the look and feel itself.
 
+
+**** Imports
 
 #+begin_src clojurescript :tangle ../../src/input/composer.cljs
 (ns input.composer
@@ -154,6 +158,9 @@ https://tiptap.dev/docs/editor/core-concepts/extensions
 #+end_src
 
 
+
+**** Submit Extension
+
 This determines the 'submit' behavior for the editor.
 #+begin_src clojurescript :tangle ../../src/input/composer.cljs
 (def submit-extension
@@ -176,6 +183,10 @@ This determines the 'submit' behavior for the editor.
 #+end_src
 
 
+**** TipTap Component
+
+***** Component
+
 We build out the editor with the above extensions to 'include' that behavior.
 Then we build the react component as TipTap leans heavily on React hooks and
 re-frame tends to avoid them if possible. This is one of those if possible cases,
@@ -187,17 +198,27 @@ so we stick with what the complex component expects.
         on-files     (.. props -children -onFiles)
         on-change    (.. props -children -onChange)
         loaded-text  (.. props -children -loadedText)
+        on-ready     (.. props -children -onEditorReady)
         editor (useEditor
                 #js {:extensions #js [(.configure StarterKit #js {})
                                       (.configure Placeholder #js {:placeholder "Type a message..."})
                                       (.configure submit-extension #js {:onSend on-send})
-                                      (.configure file-drop-extension #js {:onFiles on-files})]
+                                      (.configure file-drop-extension #js {:onFiles on-files})
+                                      (.configure custom-emote #js {})
+                                      (.configure Mention #js {:name "emojiSuggestion"
+                                                               :suggestion (emoji-suggestion-options)})
+                                      (.configure Mention #js {:name "userMention"
+                                                               :suggestion (user-mention-options)})
+                                      ]
                      :content (or loaded-text "")
                      :editable (boolean active-id)
                      :onUpdate (fn [ctx]
                                  (when on-change
                                    (on-change (.getText (.-editor ctx))
                                               (.getHTML (.-editor ctx)))))
+                     :onCreate (fn [ctx]
+                                 (when on-ready
+                                   (on-ready (.-editor ctx))))
                      :editorProps #js {:attributes #js {:class "tiptap-editor-surface"}}}
                 #js [active-id (boolean loaded-text)])]
     (if-not editor
