@@ -1,0 +1,8 @@
+.env
+.git
+node_modules
+target
+resources/public
+.shadow-cljs
+build
+dist
