@@ -1,10 +1,16 @@
 
-**** Idiomatic Logging
+** Idiomatic Logging
+
+
+**** Preface
 
 Digging into logging solutions to have a cohesive implementation across the client, and I
 feel timbre is likely the best choice. It is pure CLJ and so it doesn't need
 CLJS or JS libraries innately, but does use portable code so that JS outputting
 routed for the user automatically.
+
+
+**** Examples
 
 Can even send logs out like this.
 #+begin_src clojurescript
@@ -32,12 +38,17 @@ by hand means we can just pass everything to our logger and expect it to handle 
 #+end_src
 
 
+**** Imports
+
 So now we can move on to set up the logger for our project usage
 #+begin_src clojurescript :tangle ../../src/utils/logger.cljs
 (ns utils.logger
   (:require [taoensso.timbre :as timbre]
              [taoensso.timbre.appenders.core :as appenders]))
 #+end_src
+
+
+**** JSON Appender
 
 We should likely set up an appender that makes our logs clean and easily queried.
 #+begin_src clojurescript :tangle ../../src/utils/logger.cljs
@@ -57,6 +68,8 @@ We should likely set up an appender that makes our logs clean and easily queried
 #+end_src
 
 
+**** Initializing the Logger
+
 Then we should point to our appender so that all of our logs go through it.
 By tying in js/goog.DEBUG we can make it so that timbre is disabled for release
 versions, but enabled in dev mode.
@@ -74,6 +87,10 @@ effectively 'release' and anything else is 'dev'
      {:appenders {:json {:enabled? false}}})))
 #+end_src
 
+
+
+**** Macro wrappers for internal usage ease
+
 Now we need to re-expose these back out for the rest of our project to utilize
 #+begin_src clojurescript :tangle ../../src/utils/logger.cljs
 (def trace  timbre/trace)
@@ -85,7 +102,8 @@ Now we need to re-expose these back out for the rest of our project to utilize
 #+end_src
 
 
- / 
+**** Example usages
+
 Now we can easily just import this CLJS file like so
 #+begin_src clojurescript
 (ns paradise.namespace
