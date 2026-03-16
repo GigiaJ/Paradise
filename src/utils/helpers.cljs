@@ -167,22 +167,6 @@
   (when raw-text
     (str/escape (str raw-text) {\& "&amp;" \< "&lt;" \> "&gt;" \" "&quot;" \' "&#39;"})))
 
-(defn click-away-wrapper
-  "A reusable invisible backdrop for 'light dismiss' popovers.
-   It catches clicks and prevents them from bleeding through to the app."
-  [{:keys [on-close z-index]} & children]
-  [:<>
-   [:div.click-away-catcher
-    {:on-mouse-down (fn [e]
-                      (.preventDefault e)
-                      (.stopPropagation e)
-                      (on-close))
-     :style {:position "fixed"
-             :top 0 :left 0 :right 0 :bottom 0
-             :z-index (or z-index 99)
-             :cursor "default"}}]
-   (into [:<>] children)])
-
 (defn format-divider-date [ts]
   (let [date (js/Date. ts)
         today (js/Date.)
