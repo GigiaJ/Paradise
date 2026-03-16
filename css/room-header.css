@@ -1,0 +1,122 @@
+.room-layout {
+    flex: 1;
+    height: 100vh;
+    display: grid;
+    overflow: hidden;
+}
+
+.room-header {
+    display: flex;
+    align-items: center;
+    padding: 0 16px;
+    height: 48px;
+    border-bottom: 1px solid #1e1f22;
+    background: #313338;
+    min-width: 0;
+}
+
+.room-name {
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex: 0 1 auto;
+}
+
+.main-content, .sidebar {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 0;
+    overflow: hidden;
+}
+
+.header-actions {
+  margin-left: auto;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.header-btn {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #a0a0a0;
+  padding: 6px 14px;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  font-family: inherit;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.15s ease-in-out;
+  outline: none;
+}
+
+.header-btn .icon {
+  font-size: 1rem;
+  filter: grayscale(100%);
+  opacity: 0.7;
+}
+
+.header-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.3);
+  color: #fff;
+}
+
+.header-btn:hover .icon {
+  filter: none;
+  opacity: 1;
+}
+
+.header-btn.active {
+  background: rgba(88, 101, 242, 0.2);
+  border-color: #5865f2;
+  color: #fff;
+}
+
+.header-btn.active .icon {
+  filter: none;
+  opacity: 1;
+}
+
+.header-btn.pulse-green {
+  border-color: #23a559;
+  color: #23a559;
+  animation: header-pulse 2s infinite;
+}
+
+@keyframes header-pulse {
+  0% { box-shadow: 0 0 0 0 rgba(35, 165, 89, 0.4); }
+  70% { box-shadow: 0 0 0 6px rgba(35, 165, 89, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(35, 165, 89, 0); }
+}
+
+.header-icon-btn {
+    background: transparent;
+    border: none;
+    color: var(--text-secondary);
+    padding: 6px;
+    border-radius: 4px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s ease;
+}
+
+.header-icon-btn:hover {
+    background: var(--surface-2);
+    color: var(--text-primary);
+}
+
+.header-icon-btn.active {
+    background: var(--surface-3);
+    color: var(--primary-accent);
+}
+
+.header-icon-btn.active-green {
+    color: #43b581;
+}

@@ -1,0 +1,127 @@
+.space-icon-wrapper {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+    padding: 4px 0;
+    cursor: pointer;
+    position: relative;
+}
+
+.space-icon-wrapper .avatar-container.space {
+    transition: border-radius 0.2s ease, background-color 0.2s ease;
+}
+
+.space-icon-wrapper:hover .avatar-container.space,
+.space-icon-wrapper.active .avatar-container.space {
+    border-radius: 16px;
+}
+
+.space-icon-wrapper:hover .avatar-placeholder-layer,
+.space-icon-wrapper.active .avatar-placeholder-layer {
+    background-color: #5865f2 !important;
+}
+
+.space-icon-wrapper::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    width: 4px;
+    height: 8px;
+    background-color: white;
+    border-radius: 0 4px 4px 0;
+    transition: height 0.2s ease;
+    opacity: 0;
+}
+
+.space-icon-wrapper:hover::before {
+    opacity: 1;
+    height: 20px;
+}
+
+.space-icon-wrapper.active::before {
+    opacity: 1;
+    height: 40px;
+}
+
+
+.home-icon-container {
+    width: 48px;
+    height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    background-color: #313338;
+    border-radius: 50%;
+    transition: border-radius 0.2s ease, background-color 0.2s ease;
+}
+
+.space-icon-wrapper:hover .home-icon-container,
+.space-icon-wrapper.active .home-icon-container {
+    border-radius: 16px;
+    background-color: #5865f2;
+}
+
+
+.space-icon-wrapper {
+    position: relative;
+    display: flex;
+    justify-content: center;
+    margin-bottom: 8px;
+    cursor: pointer;
+}
+
+.space-notification-pill {
+    position: absolute;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background-color: #ffffff;
+    transition: all 0.2s ease;
+}
+
+.space-mention-badge {
+    position: absolute;
+    bottom: 2px;
+    right: 2px;
+    background: #ff4b4b;
+    color: white;
+    border-radius: 10px;
+    padding: 0 6px;
+    font-size: 11px;
+    font-weight: bold;
+    min-width: 18px;
+    height: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 2px solid #18191c;
+    z-index: 10;
+    pointer-events: none;
+    animation: badge-pop 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+@keyframes badge-pop {
+    from { transform: scale(0); }
+    to { transform: scale(1); }
+}
+
+
+.space-icon-wrapper:hover .space-notification-pill {
+    height: 20px;
+    border-radius: 4px;
+}
+
+
+.is-dm-entry {
+    margin-bottom: 4px;
+}
+
+.is-dm-entry img {
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+

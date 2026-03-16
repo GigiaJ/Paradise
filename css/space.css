@@ -1,0 +1,44 @@
+.sidebar-spaces {
+    width: 72px;
+    flex-shrink: 0;
+    background-color: #1e1f22;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding-top: 12px;
+    gap: 8px;
+}
+
+.sidebar-divider {
+    width: 32px;
+    height: 2px;
+    background-color: #3f4147;
+    border-radius: 1px;
+    margin: 4px 0;
+}
+
+
+.spaces-list-container {
+    width: 100%;
+    height: 100%;
+}
+
+
+
+
+/*
+
+.sidebar-rooms {
+    width: 240px;
+    flex-shrink: 0;
+    background-color: #2b2d31;
+    display: flex;
+    flex-direction: column;
+    padding: 12px;
+}
+
+.virtuoso-grid-item {
+    overflow: visible !important;
+}
+
+*/

@@ -1,0 +1,24 @@
+
+  .hide-on-desktop {
+      display: flex !important;
+  }
+  .hide-on-mobile {
+      display: none !important;
+  }
+
+  @media (min-width: 768px) {
+      .hide-on-desktop {
+          display: none !important;
+      }
+      .hide-on-mobile {
+          display: flex !important;
+      }
+      .call-participant-item:hover {
+          background-color: var(--hover-bg);
+          border-radius: 4px;
+      }
+  }
+  .persistent-call-layer {
+      pointer-events: none;
+      z-index: 0;
+  }
