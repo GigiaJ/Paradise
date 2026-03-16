@@ -1,0 +1,269 @@
+(ns utils.global-ui
+  (:require
+ [promesa.core :as p]
+   [re-frame.core :as re-frame]
+   [re-frame.db :as db]
+   [reagent.core :as r]
+;;   [input.emotes :refer [emoji-sticker-board]]
+   ))
+
+(defn click-away-wrapper
+  "A reusable invisible backdrop for 'light dismiss' popovers.
+   It catches clicks and prevents them from bleeding through to the app."
+  [{:keys [on-close z-index]} & children]
+  [:<>
+   [:div.click-away-catcher
+    {:on-mouse-down (fn [e]
+                      (.preventDefault e)
+                      (.stopPropagation e)
+                      (on-close))
+     :style {:position "fixed"
+             :top 0 :left 0 :right 0 :bottom 0
+             :z-index (or z-index 99)
+             :cursor "default"}}]
+   (into [:<>] children)])
+
+(re-frame/reg-event-db
+ :context-menu/open
+ (fn [db [_ {:keys [x y items]}]]
+   (assoc db :context-menu {:open? true
+                            :x x
+                            :y y
+                            :items items})))
+
+(re-frame/reg-event-db
+ :context-menu/close
+ (fn [db _]
+   (assoc db :context-menu {:open? false :x 0 :y 0 :items []})))
+
+(re-frame/reg-sub
+ :context-menu/state
+ (fn [db _]
+   (:context-menu db {:open? false})))
+
+(defn global-context-menu []
+  (r/with-let [!drag-y (r/atom 0)
+               !start-y (r/atom 0)
+               is-mobile? (<= js/window.innerWidth 768)]
+    (let [{:keys [open? x y items]} @(re-frame/subscribe [:context-menu/state])]
+      (when-not open?
+        (reset! !drag-y 0)
+        (reset! !start-y 0))
+      (when open?
+        (let [
+              menu-width  200
+      item-height (if is-mobile? 48 32)
+      menu-height (* (count items) item-height)
+      render-x (if (> (+ x menu-width) js/window.innerWidth)
+                 (- x menu-width)
+                 x)
+      render-y (if (> (+ y menu-height) js/window.innerHeight)
+                 (- y menu-height)
+                 y)
+
+              handle-ptr-down (fn [e]
+                                (reset! !start-y (.-clientY e))
+                                (.setPointerCapture (.-target e) (.-pointerId e)))
+              handle-ptr-move (fn [e]
+                                (when (pos? @!start-y)
+                                  (let [delta (- (.-clientY e) @!start-y)]
+                                    (reset! !drag-y (max 0 delta)))))
+              handle-ptr-up (fn [e]
+                              (if (> @!drag-y 100)
+                                (re-frame/dispatch [:context-menu/close])
+                                (reset! !drag-y 0))
+                              (reset! !start-y 0)
+                              (.releasePointerCapture (.-target e) (.-pointerId e)))]
+
+
+          [click-away-wrapper
+           {:on-close #(re-frame/dispatch [:context-menu/close])
+            :z-index 9998}
+           [:div.universal-context-menu
+            {:class (when is-mobile? "mobile-sheet")
+             :on-pointer-down (when is-mobile? handle-ptr-down)
+             :on-pointer-move (when is-mobile? handle-ptr-move)
+             :on-pointer-up   (when is-mobile? handle-ptr-up)
+             :style (if is-mobile?
+           {:transform (str "translateY(" @!drag-y "px)")
+            :transition (if (pos? @!start-y) "none" "transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1)")
+            :z-index 99999
+            }
+           {:left (str render-x "px")
+            :top  (str render-y "px")
+            :transform "none"
+            :z-index 99999})
+             }
+            [:div.mobile-drag-handle]
+            (for [{:keys [id label action class-name icon]} items]
+              ^{:key (or id label)}
+              [:div.context-menu-item
+               {:class class-name
+                :on-click (fn [e]
+                            (.stopPropagation e)
+                            (action)
+                            (re-frame/dispatch [:context-menu/close]))}
+               (when icon [:span.item-icon icon])
+               [:span.item-label label]])]])))))
+
+
+(defn satellite-overlay [child-component]
+  (let [picker-state @(re-frame/subscribe [:ui/active-satellite])]
+    (when picker-state
+      (let [{:keys [room-id msg-id x y]} picker-state
+            width  320
+            height 380
+            render-x (if (> (+ x width) js/window.innerWidth) (- x width) x)
+            render-y (if (> (+ y height) js/window.innerHeight) (- y height) y)]
+        [:div.satellite-overlay
+         {:style {:left (str render-x "px")
+                  :top (str render-y "px")}}
+         [:div.satellite-content
+          [child-component
+           {:room-id room-id
+            :msg-id msg-id
+            :on-close #(re-frame/dispatch [:ui/close-satellite])}]]]))))
+
+(defn global-reaction-picker []
+  (let [picker-state @(re-frame/subscribe [:msg/active-reaction-picker])]
+    (when picker-state
+      (let [{:keys [room-id msg-id x y]} picker-state
+            width  320
+            height 380
+            render-x (if (> (+ x width) js/window.innerWidth)
+                       (- x width)
+                       x)
+            render-y (if (> (+ y height) js/window.innerHeight)
+                       (- y height)
+                       y)]
+        [:div.dynamic-reaction-wrapper
+         {:style {:position "fixed"
+                  :left (str render-x "px")
+                  :top (str render-y "px")
+                  :z-index 11000}}
+         [emoji-sticker-board
+          {:on-close #(re-frame/dispatch [:msg/close-reaction-picker])
+           :on-insert-emoji (fn [shortcode _url]
+                              (re-frame/dispatch [:sdk/send-reaction room-id msg-id shortcode])
+                              (re-frame/dispatch [:msg/close-reaction-picker]))
+           :on-send-sticker (fn [& _] (log/warn "No stickers in reactions!"))}]]))))
+
+(defn long-press-props [action-fn]
+  (let [timer (atom nil)
+        clear-timer! (fn []
+                       (when @timer
+                         (js/clearTimeout @timer)
+                         (reset! timer nil)))]
+    {:on-context-menu (fn [e]
+                        (.preventDefault e)
+                        (action-fn (.-clientX e) (.-clientY e)))
+     :on-touch-start  (fn [e]
+                        (clear-timer!)
+                        (let [touch (aget (.-touches e) 0)
+                              mx (.-clientX touch)
+                              my (.-clientY touch)]
+                          (reset! timer
+                                  (js/setTimeout
+                                   (fn []
+                                     (action-fn mx my))
+                                   500))))
+     :on-touch-move   (fn [_] (clear-timer!))
+     :on-touch-end    (fn [_] (clear-timer!))
+     :on-touch-cancel (fn [_] (clear-timer!))}))
+
+(def avatar-colors
+  ["#5865f2" "#3ba55c" "#faa61a" "#ed4245" "#eb459e" "#9b59b6"])
+
+(defn get-avatar-color [id]
+  (if-not id
+    (first avatar-colors)
+    (let [hash (reduce #(+ %1 (.charCodeAt %2 0)) 0 (str id))]
+      (nth avatar-colors (mod hash (count avatar-colors))))))
+
+;; Hacky fix, but I need to clean the 'shape' up anyway haha
+(defn kname [arg]
+  (name arg))
+
+(defn avatar [{:keys [id name url size status shape] :or {size 32 shape :circle}}]
+  (r/with-let [!broken? (r/atom false)]
+    (let [len      (count name)
+          target   (if (= shape :space) 2 1)
+          initials (if (> len 0)
+                     (subs name 0 (min len target))
+                     "?")
+          bg-color (if (= shape :none) "transparent" (get-avatar-color id name))]
+      [:div.avatar-wrapper
+       {:class [:avatar-wrapper (kname shape)]
+        :style {:width size :height size}}
+       [:div.avatar-placeholder-layer
+        {:style {:background-color bg-color}}
+        (when-not (= shape :none)
+          [:span.avatar-text {:style {:font-size (str (/ size (if (= shape :space) 2.5 2.2)) "px")}}
+           initials])]
+
+       (when (and url (not @!broken?))
+         [:img.avatar-img-layer
+          {:src url
+           :alt ""
+           :on-error #(reset! !broken? true)}])])))
+
+
+
+
+(defn swipe-to-action-wrapper [{:keys [can-edit? on-action wrapper-props]} & children]
+  (r/with-let [!drag-state     (r/atom {:start-x nil :current-x 0 :action nil})
+               reply-threshold 50
+               edit-threshold  140]
+    (let [{:keys [start-x current-x action]} @!drag-state
+          is-dragging? (some? start-x)
+
+          handle-ptr-down (fn [e]
+                            (when (= (.-button e) 0)
+                              (.setPointerCapture (.-target e) (.-pointerId e))
+                              (reset! !drag-state {:start-x (.-clientX e) :current-x 0 :action nil})))
+
+          handle-ptr-move (fn [e]
+                            (when start-x
+                              (let [dx (- start-x (.-clientX e))
+                                    bounded-dx (max 0 (min dx 180))
+                                    new-action (cond
+                                                 (and can-edit? (> bounded-dx edit-threshold)) :edit
+                                                 (> bounded-dx reply-threshold)              :reply
+                                                 :else                                       nil)]
+                                (swap! !drag-state assoc :current-x bounded-dx :action new-action))))
+
+          handle-ptr-up (fn [e]
+                          (when start-x
+                            (.releasePointerCapture (.-target e) (.-pointerId e))
+                            (when action
+                              (on-action action))
+                            (reset! !drag-state {:start-x nil :current-x 0 :action nil})))]
+
+      [:div.timeline-swipe-wrapper
+       {:style {:position "relative" :overflow "hidden"}}
+       [:div.swipe-action-bg
+        {:style {:position "absolute" :right 0 :top 0 :bottom 0 :width "100%"
+                 :display "flex" :align-items "center" :justify-content "flex-end" :padding-right "16px"
+                 :opacity (if (> current-x 20) 1 0)
+                 :transition "opacity 0.2s"
+                 :color (if (= action :edit) "var(--brand-experiment, #5865f2)" "var(--text-muted, #888)")
+                 :font-weight "bold" :font-size "0.85rem" :z-index 0}}
+        (cond
+          (= action :edit)  [:span "✏️ Edit"]
+          (= action :reply) [:span "Reply ↩️"]
+          :else             [:span "↩️"])]
+
+       [:div.swipe-foreground
+        (merge wrapper-props
+               {:on-pointer-down   handle-ptr-down
+                :on-pointer-move   handle-ptr-move
+                :on-pointer-up     handle-ptr-up
+                :on-pointer-cancel handle-ptr-up
+                :style {:transform    (str "translateX(-" current-x "px)")
+                        :transition   (if is-dragging? "none" "transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1)")
+                        :touch-action "pan-y"
+                        :position     "relative"
+                        :z-index      1
+                        :background   "var(--background-primary, #313338)"
+                        :user-select  (if is-dragging? "none" "auto")}})
+        (into [:<>] children)]])))
