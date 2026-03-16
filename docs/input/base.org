@@ -1,9 +1,17 @@
 
 ** Message Input
+
+
+**** Preface
 Obviously a core part of a chat experience is the input mechanism itself.
-The decision for rich text-editing fields isn't terribly hard. Element
-seems to use TapTap and that actually seems perfect for our case too.
-It is headless, so we can theme and customize it without much friction.
+The decision for rich text-editing fields is a lengthy list of pros and
+cons for each editor. However, to avoid lengthy articulation on editors
+we opted for the one that seemed the most pleasant and familiarly mold-able.
+So, TapTap! It actually seems perfect for our case too as without going into
+too much detail it is headless, so we can theme and customize it without much friction.
+
+
+**** Imports
 
 #+begin_src clojurescript :tangle ../../src/input/base.cljs
 (ns input.base
