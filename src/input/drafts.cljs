@@ -30,6 +30,23 @@
       (.new (.-File (.-DraftAttachment sdk))
             #js {:fileInfo file-info :source source}))))
 
+(defn prepare-attachment [sdk att]
+  (let [mime      (or (:mime att) "application/octet-stream")
+        file-info #js {:mimetype mime
+                       :size (js/BigInt (.-byteLength (:buffer att)))
+                       :thumbnailInfo js/undefined
+                       :thumbnailSource js/undefined}
+        source    (.. sdk -UploadSource -Data
+                      (new #js {:bytes (:buffer att)
+                                :filename (:filename att)}))]
+    {:source source
+     :info   file-info
+     :type   (cond
+               (str/starts-with? mime "image/") "Image"
+               (str/starts-with? mime "video/") "Video"
+               (str/starts-with? mime "audio/") "Audio"
+               :else                            "File")}))
+
 (defn attachment-preview [room-id attachment index]
   [:div.attachment-preview
    (let [{:keys [mime preview-url filename]} attachment]
