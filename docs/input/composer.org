@@ -26,7 +26,100 @@ just keep this to defining the look and feel itself.
             ["generated-compat" :as sdk :refer [MessageType MessageFormat MediaSource UploadSource UploadParameters]]))
 #+end_src
 
+
+**** Custom HTML Rendering (Emotes) Extension
+
+
+
+***** Helper Functions
+
+#+begin_src clojurescript :tangle ../../src/input/composer.cljs
+(defn renderHtml [^js props]
+                      #js ["img" (mergeAttributes
+                                  (.-HTMLAttributes props)
+                                  #js {"data-emote" true
+                                       "class" "chat-input-emote"
+                                       "style" "height: 1.5em; width: auto; vertical-align: middle; display: inline-block;"})])
+#+end_src
+
+
+#+begin_src clojurescript :tangle ../../src/input/composer.cljs
+(defn prepare-html-for-editor [raw-html]
+  (if (string? raw-html)
+    (str/replace raw-html
+                 #"mxc://[^\"\'\s>]+"
+                 #(mxc->url %))
+    ""))
+#+end_src
+
+Now Tiptap has the HTTPS URL inside of the message box, but we can't send that
+so below is a helper function that converts the node BACK to Mxc on send.
+#+begin_src clojurescript :tangle ../../src/input/composer.cljs
+(defn- get-matrix-formatted-body [editor]
+  (let [json (.. editor getJSON -content)
+        node->html (fn node->html [node]
+                     (let [type (.-type node)
+                           attrs (.-attrs node)]
+                       (cond
+                         (= type "customEmote")
+                         (let [
+                               render-vec (renderHtml #js {:HTMLAttributes attrs})
+                               tag-name   (first render-vec)
+                               html-attrs (second render-vec)
+                               shortcode  (aget attrs "shortcode")
+                               mxc-uri    (url->mxc (aget attrs "src"))]
+                           (str "<" tag-name
+                                " data-mx-emoticon"
+                                " src=\"" mxc-uri "\""
+                                " alt=\":" shortcode ":\""
+                                " title=\":" shortcode ":\""
+                                " style=\"" (aget html-attrs "style") "\">")
+                           )
+                         (= type "text") (.-text node)
+                         :else "")))]
+    (str/join ""
+      (map (fn [p]
+             (str "<p>"
+                  (str/join "" (map node->html (js/Array.from (or (.-content p) #js []))))
+                  "</p>"))
+           (js/Array.from json)))))
+
+#+end_src
+
+
+***** Custom TipTap Node
+
+#+begin_src clojurescript :tangle ../../src/input/composer.cljs
+(def custom-emote
+  (.create Node
+   #js {:name "customEmote"
+        :inline true
+        :group "inline"
+        :selectable true
+        :atom true
+        :addAttributes (fn [] #js {:src #js {:default nil}
+                                   :shortcode #js {:default nil}})
+        :parseHTML (fn []
+                     #js [#js {:tag "img[data-emote]"}
+                          #js {:tag "img[data-mx-emoticon]"}
+                          #js {:tag "img"
+                               :getAttrs (fn [^js node]
+                                           #js {:src (.getAttribute node "src")
+                                                :shortcode (or (.getAttribute node "alt")
+                                                               (.getAttribute node "title"))})}])
+        :renderHTML renderHtml}))
+#+end_src
+
+
+
+**** File Drop Extension
+
 This defines how we should process drag and drop and copy paste into the editor.
+Tiptap supports adding extensions and provides a decent number of them out of the box
+It makes it easy to add new ones though.
+
+https://tiptap.dev/docs/editor/core-concepts/extensions
+
 #+begin_src clojurescript :tangle ../../src/input/composer.cljs
 (def file-drop-extension
   (.create Extension
