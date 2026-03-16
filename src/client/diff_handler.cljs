@@ -6,7 +6,6 @@
    [promesa.core :as p]
    [re-frame.core :as re-frame]))
 
-
 (defn apply-matrix-diffs [current-items updates parse-fn]
   (let [initial-items (vec (or current-items []))]
     (p/loop [i 0
@@ -18,11 +17,14 @@
               ]
           (p/let [new-items
                   (case tag
-                    "Reset"     (p/let [p (p/all (map parse-fn (.-values inner)))] 
+                    "Reset"     (p/let [p (p/all (map parse-fn (.-values inner)))]
                                   (vec p))
-                    "PushBack"  (p/let [p (parse-fn (.-value inner))] 
+                    "Append" (let [raw-vals (or (.-values inner) inner)]
+                               (p/let [new-vals (p/all (map parse-fn (js/Array.from raw-vals)))]
+                                 (vec (concat items new-vals))))
+                    "PushBack"  (p/let [p (parse-fn (.-value inner))]
                                   (conj items p))
-                    "PushFront" (p/let [p (parse-fn (.-value inner))] 
+                    "PushFront" (p/let [p (parse-fn (.-value inner))]
                                   (into [p] items))
                     "Clear"     []
                     "PopFront"  (vec (rest items))
@@ -42,4 +44,19 @@
             (p/recur (inc i) (vec (or new-items items)))))
         (vec items)))))
 
-
+(defn apply-generic-diffs!
+  "A universal mutex-locked diff processor for the Matrix Rust SDK."
+  [{:keys [!mutex db-path parse-fn sync-event async-event updates]}]
+  (swap! !mutex
+         (fn [prev-promise]
+           (p/then prev-promise
+                   (fn []
+                     (let [current-list (get-in @re-frame.db/app-db db-path [])]
+                       (-> (apply-matrix-diffs current-list updates parse-fn)
+                           (p/then (fn [next-list]
+                                     (when sync-event
+                                       (re-frame/dispatch-sync (conj sync-event next-list)))
+                                     (when async-event
+                                       (re-frame/dispatch (conj async-event next-list)))))
+                           (p/catch (fn [err]
+                                      (log/error "Diff Panic at" db-path ":" err))))))))))
