@@ -1,4 +1,12 @@
 
+** Auth Events
+
+Probably needs a better name (and logical grouping)
+
+
+
+**** Imports
+
 #+begin_src clojurescript :tangle ../../src/auth/events.cljs
 (ns auth.events
   (:require [re-frame.core :as re-frame]
@@ -8,6 +16,7 @@
             [client.login :as login]
             [service-worker-handler :refer [register-sw!]]
             [taoensso.timbre :as log]))
+**** Login Reframe Components
 
 (re-frame/reg-sub
  :auth/status
@@ -65,6 +74,19 @@
 #+end_src
 
 
+**** Logout
+
+
+
+**** Sign-in Page Component
+
+
+***** Login Field
+
+
+
+***** Login Screen
+
 #+begin_src clojurescript :tangle ../../src/auth/events.cljs
 (defn login-screen []
   (let [fields (r/atom {:hs (or js/process.env.MATRIX_HOMESERVER "")
@@ -101,3 +123,7 @@
                        (re-frame/dispatch [:auth/login (:hs @fields) (:user @fields) (:pass @fields)]))}
           (if (= status :authenticating) "Logging in..." "Login")]]))))
 #+end_src
+
+
+***** CSS
+
