@@ -259,7 +259,7 @@ help anyone later who wants to make changes to aspects of the timeline.
 **** Hover and Context Menus for Items
 
 
-#+begin_src clojurescript :tangle ../../../../src/container/timeline/item.cljs
+#+begin_src clojurescript :tangle ../../../src/container/timeline/item.cljs
 (defn build-message-actions [item active-room current-user-id x y]
   (let [
         ;;_ (log/debug item)
