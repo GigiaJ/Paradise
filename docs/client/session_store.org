@@ -18,7 +18,6 @@ We need a helper to verify we can actually find the Rust classes.
 This grabs the Session constructor from the matrix_sdk namespace within our bundle.
 #+begin_src clojurescript :tangle ../../src/client/session_store.cljs
 (defn- get-session-class []
-  ;; Use the exact same root-finding logic that worked in login.cljs!
   (let [sdk-root (if (.-Session sdk) sdk (.-default sdk))]
     (if sdk-root
       (.-Session sdk-root)
