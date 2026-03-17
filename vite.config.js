@@ -16,10 +16,6 @@ const copyFiles = {
             dest: 'generated-compat'
         },
         {
-            src: 'themes/*',
-            dest: 'themes'
-        },
-        {
             src: 'css/*',
             dest: 'css'
         }
