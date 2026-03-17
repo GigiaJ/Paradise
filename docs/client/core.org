@@ -48,9 +48,9 @@ operations here up until the point in which the client is 'started'.
 Provides the entry-point for the application that Vite and the index.html enter from.
 #+begin_src clojurescript  :tangle ../../src/client/core.cljs
 (defn ^:export init []
-(app/init)
-(logger/init!)
-(log/debug  "Entering Paradise!")
+  (app/init)
+  (logger/init!)
+  (log/debug  "Entering Paradise!")
   )
 #+end_src
 
