@@ -87,6 +87,22 @@ have no overhead.
      (log/info "Loaded" (count structured-packs) "packs!")
      (assoc db :emoji/available-packs structured-packs))))
 
+(re-frame/reg-event-db
+ :sdk/save-all-emotes
+ (fn [db [_ fetched-packs]]
+   (let [valid-packs (remove nil? fetched-packs)
+         structured-packs (into {}
+                                (for [{:keys [pack-id data]} valid-packs
+                                      :let [clj-data    (js->clj data :keywordize-keys true)
+                                            pack-info   (:pack clj-data)
+                                            usage-set   (set (:usage pack-info []))
+                                            is-sticker? (contains? usage-set "sticker")]]
+                                  [pack-id {:name             (or (:display_name pack-info) pack-id)
+                                            :avatar           (:avatar_url pack-info)
+                                            :is-sticker-pack? is-sticker? 
+                                            :images           (:images clj-data)}]))]
+     (log/info "Loaded" (count structured-packs) "packs!")
+     (assoc db :emoji/available-packs structured-packs))))
 
 (re-frame/reg-sub
  :emoji/all-packs
