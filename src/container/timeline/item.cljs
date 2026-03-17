@@ -226,6 +226,29 @@
            (log/error "FFI Edit Panic:" e))))
      {})))
 
+(defn build-message-actions [item active-room current-user-id x y]
+  (let [
+        ;;_ (log/debug item)
+        ;;_ (log/debug current-user-id)
+        msg-id   (:id item)]
+    (cond-> [{:id "react"
+              :label "Add Reaction"
+              :icon "😀"
+              :action #(re-frame/dispatch [:msg/open-reaction-picker active-room msg-id x y])}
+
+             {:id "reply" :label "Reply" :icon "↩️"
+              :action #(re-frame/dispatch [:input/set-context active-room :reply item])}
+
+             (when (:is-own? item)
+               {:id "edit" :label "Edit Message" :icon "✏️"
+                :action #(re-frame/dispatch [:input/set-context active-room :edit item])})
+             {:id "thread" :label "Start Thread"  :icon "🧵" :action #(re-frame/dispatch [:msg/thread active-room msg-id])}
+             {:id "copy"   :label "Copy Text"     :icon "📋" :action #(js/navigator.clipboard.writeText (or (get-in item [:content :body]) ""))}
+             {:id "link"   :label "Copy Link"     :icon "🔗" :action #(js/console.log "Copy permalink for" msg-id)}
+             {:id "pin"    :label "Pin Message"   :icon "📌" :action #(re-frame/dispatch [:msg/pin active-room msg-id])}
+             {:id "source" :label "View Event"    :icon "🔍" :action #(re-frame/dispatch [:msg/view-source msg-id])}]
+      is-mine? (conj {:id "delete" :label "Delete"       :icon "🗑️" :class-name "danger" :action #(re-frame/dispatch [:msg/delete active-room msg-id])}))))
+
 (defn message-hover-toolbar [item active-room current-user-id]
   (let [msg-id   (:id item)]
     [:div.message-hover-toolbar
