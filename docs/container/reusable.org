@@ -17,8 +17,9 @@ so we'll keep them nicely collected here.
             ["react-virtuoso" :refer [Virtuoso]]
             [promesa.core :as p]
             [reagent.core :as r]
-            [reagent.dom.client :as rdom])
-  )
+            [reagent.dom.client :as rdom]
+            [utils.svg :as icons]
+            ))
 #+end_src
 
 
