@@ -34,5 +34,8 @@ Thumbs.db
 packages/generated-compat/
 packages/generated/
 
+themes/
+build/
+
 
 quick.sh
