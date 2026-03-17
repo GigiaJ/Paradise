@@ -1,6 +1,7 @@
 ** Room List Entries
 
-***** Preface
+
+**** Preface
 
 So each entry in the room list should likely be handled with some more care than
 just planting all the logic for it into one file.
@@ -8,10 +9,11 @@ So this is where we'll start allowing that logic to live.
 
 
 
+
 **** Imports
 
 #+begin_src clojurescript :tangle ../../../src/navigation/rooms/entry.cljs
-(ns room.entry
+(ns navigation.rooms.entry
   (:require
    [clojure.string :as str]
    [promesa.core :as p]
@@ -23,12 +25,13 @@ So this is where we'll start allowing that logic to live.
    [reagent.core :as r]
    [utils.svg :as icons]
    [reagent.dom.client :as rdom]
-   [room.room-summary :refer [build-room-summary]]
+   [navigation.rooms.room-summary :refer [build-room-summary]]
    [client.diff-handler :refer [apply-matrix-diffs]]
    [utils.global-ui :refer [avatar long-press-props]]
    ["generated-compat" :as sdk :refer [RoomListEntriesDynamicFilterKind RoomListFilterCategory RoomListLoadingState]])
   (:require-macros [utils.macros :refer [ocall oget]]))
 #+end_src
+
 
 **** Room Actions
 
@@ -408,6 +411,8 @@ any room (though perhaps we should restrict for just call rooms?)
 The idea is that any room can have a call and a visual indicator for that is
 important.
 
+***** Component
+
 #+begin_src clojurescript :tangle ../../../src/navigation/rooms/entry.cljs
 (defn room-item [{:keys [id name indent is-space? is-closed? is-call? has-call?
                         active-room unread? highlight? notif-count
@@ -486,6 +491,8 @@ important.
              [:span.participant-name p-name]]))])]))
 
 #+end_src
+
+***** CSS
 
 
 
