@@ -47,11 +47,11 @@ However, for dynamic resource allocation... Vite doesn't have a great way to do 
 So instead we want to do this BEFORE ShadowCLJS compiles even so that we can be
 sure our translation files are present in time.
 #+begin_src clojurescript :tangle ../src/build_hooks.clj
-(defn generate-lang-map
+#_(defn generate-lang-map
 {:shadow.build/stage :configure}
   [build-state & args]
   (let [source-dir (io/file "node_modules/@element-hq/web-shared-components/src/i18n/strings")
-        target-dir (io/file "resources/public/i18n")
+        target-dir (io/file "build/i18n")
         files (filter #(.endsWith (.getName %) ".json") (file-seq source-dir))]
     (println "Syncing I18n JSONs to resources/public/i18n...")
     (.mkdirs target-dir)
