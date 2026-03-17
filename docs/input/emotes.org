@@ -125,36 +125,46 @@ have no overhead.
       (let [packs @(re-frame/subscribe [:emoji/all-packs])
             active-id   (or @selected-pack-id (first (keys packs)))
             active-pack (get packs active-id)]
-        [:div.emoji-popover
-         (if (empty? packs)
-           [:div.emoji-loading "Loading emotes..."]
-           [:div.emoji-container
-            [:div.emoji-sidebar
-             (for [[pack-id pack-data] packs]
-               (let [pname     (or (:name pack-data) (str pack-id))
-                     icon-text (subs pname 0 (min 2 (count pname)))
-                     avatar    (:avatar pack-data)]
-                 [:div.sidebar-item
-                  {:key      pack-id
-                   :class    (when (= active-id pack-id) "active")
-                   :on-click #(reset! selected-pack-id pack-id)
-                   :title    pname}
-                  (if avatar
-                    [:img {:src (mxc->url avatar)
-                           :style {:width "28px"
-                                   :height "28px"
-                                   :border-radius "4px"
-                                   :object-fit "cover"
-                                   :pointer-events "none"}}]
-                    [:span icon-text])]))]
-            [:div.emoji-grid-area
-             [:div.emoji-pack-title (:name active-pack)]
-             [:div.emoji-grid
-              (for [[shortcode item] (get active-pack :images {})]
-                [:div.emoji-cell
-                 {:key      shortcode
-                  :on-click (fn []
-                              (if (:is-sticker-pack item)
+        [click-away-wrapper
+         {:on-close on-close
+          :z-index 998}
+         [:div.emoji-popover
+          (if (empty? packs)
+            [:div.emoji-loading "Loading emotes..."]
+            [:div.emoji-container
+             [:div.emoji-sidebar
+              (for [[pack-id pack-data] packs]
+                (let [pname  (or (:name pack-data) (str pack-id))
+                      avatar (:avatar pack-data)]
+                  [:div.sidebar-pack-item
+                   {:key      pack-id
+                    :class    (when (= active-id pack-id) "active")
+                    :on-click #(reset! selected-pack-id pack-id)
+                    :title    pname}
+                   (if avatar
+                     [:img.pack-icon {:src (mxc->url avatar)}]
+                     [:span.pack-text-icon (subs pname 0 (min 2 (count pname)))])]))]
+             [:div.emoji-grid-area
+              [:div.emoji-pack-header
+               [:div.emoji-pack-title (or (:name active-pack) "Emotes")]
+               [:div.emoji-mode-switch
+                [:button {:class    (when-not @sticker-mode? "active")
+                          :on-click #(reset! sticker-mode? false)} "Inline"]
+                [:button {:class    (when @sticker-mode? "active")
+                          :on-click #(reset! sticker-mode? true)} "Sticker"]]]
+              [:div.emoji-grid
+               (for [[shortcode item] (get active-pack :images {})]
+                 [:div.emoji-cell
+                  {:key      shortcode
+                   :on-click (fn []
+                               (if @sticker-mode?
+                                 (on-send-sticker (:url item) shortcode (:info item))
+                                 (on-insert-emoji shortcode (:url item))))}
+                  [:img.emoji-img
+                   {:src      (mxc->url (:url item))
+                    :title    shortcode
+                    :loading  "lazy"
+                    :alt      shortcode}]])]]])]]))))
                                 (on-send-sticker (:url item) shortcode (:info item))
                                 (on-insert-emoji shortcode)))}
                  [:img {:src     (mxc->url (:url item))
