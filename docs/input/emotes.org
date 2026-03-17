@@ -1,5 +1,8 @@
 
+** Emotes
 
+
+**** Preface
 
 Badly named, but this is where the logic for the sticker and emoji board will live.
 We want to support custom emojis out of the box, so we'll go ahead with adding
@@ -7,6 +10,8 @@ support for that.
 The spec proposal for custom emotes can be found here:
 https://github.com/matrix-org/matrix-spec-proposals/pull/2545
 
+
+**** Imports
 
 #+begin_src clojurescript :tangle ../../src/input/emotes.cljs
 (ns input.emotes (:require [promesa.core :as p]
@@ -18,6 +23,8 @@ https://github.com/matrix-org/matrix-spec-proposals/pull/2545
             ["react" :as react]))
 #+end_src
 
+
+**** Custom Emote Fetching
 
 
 This may seem excessive, but the rust-sdk version currently used lacks a way
@@ -87,6 +94,12 @@ have no overhead.
    (get db :emoji/available-packs {})))
 #+end_src
 
+
+**** Emoji Stickerboard Component
+
+
+***** Component
+
 #+begin_src clojurescript :tangle ../../src/input/emotes.cljs
 (defn emoji-sticker-board [{:keys [on-insert-emoji on-send-sticker]}]
   (re-frame/dispatch [:sdk/fetch-all-emotes])
@@ -131,4 +144,7 @@ have no overhead.
                         :title   shortcode
                         :loading "lazy"
                         :alt     shortcode}]])]]])]))))
+
+***** CSS
+
 #+end_src
