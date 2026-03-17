@@ -36,6 +36,6 @@ packages/generated/
 
 themes/
 build/
-
+public/
 
 quick.sh
