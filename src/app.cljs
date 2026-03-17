@@ -253,8 +253,6 @@
 
        [settings-modal]
        [global-context-menu]
-      
-
 ;;       [global-reaction-picker]
        [image-lightbox]]
       [:div "Unknown State"])))
@@ -349,7 +347,7 @@
        [settings-modal]
        [global-context-menu]
 
-       #_[satellite-overlay
+       [satellite-overlay
           (case active-type
             :emoji-picker emoji-sticker-board
             :user-info    user-summary-card
