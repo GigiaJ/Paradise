@@ -102,6 +102,7 @@ out the parent-child relationships.
           initial-spaces (.joinedSpaces space-service)]
     (process-parent-queue!)))
 
+
 (re-frame/reg-event-db
  :sdk/save-space-sub
  (fn [db [_ space-id space-list sub-handle]]
@@ -369,6 +370,8 @@ Mostly for providing meta info about the space lists or space
 
      (when (and mentions (pos? mentions))
        [:div.space-mention-badge mentions])]))
+
+
 #+end_src
 
 ***** CSS
@@ -539,7 +542,7 @@ at abstracting the excessive state management of React.
 
 ***** CSS
 
-#+begin_src css :tangle ../../../css/navigaion.css
+#+begin_src css :tangle ../../../css/space.css
 .sidebar-spaces {
     width: 72px;
     flex-shrink: 0;
@@ -559,7 +562,17 @@ at abstracting the excessive state management of React.
     margin: 4px 0;
 }
 
-/* This one may be old... */
+
+.spaces-list-container {
+    width: 100%;
+    height: 100%;
+}
+
+
+
+
+/*
+
 .sidebar-rooms {
     width: 240px;
     flex-shrink: 0;
@@ -569,36 +582,11 @@ at abstracting the excessive state management of React.
     padding: 12px;
 }
 
-
 .virtuoso-grid-item {
     overflow: visible !important;
 }
 
-#+end_src
-
-Now for the actual spacebar we want a Virtuso. It makes the rendering of a
-list based object effectively trivial. We'll be using them around quite frequently.
-
-Now we inform Virtuso what to list to display (and we need it to be a vector/js array)
-and then we inform it *how* to display each component.
-In this case we just grab all of the stored spaces and the currently active one
-supply them as a React component by surrounding the Hiccup with (r/as-element).
-Inside we just set the click event to inform re-frame that we want this
-dispatch event. No extra imports. Just use what you need. Reframe is delightful
-at abstracting the excessive state management of React.
-#+begin_src clojurescript :tangle ../../../src/navigation/spaces/bar.cljs
-
-#_(defn virtualized-space-bar [spaces active-space-id]
-  (let [space-array (to-array spaces)]
-    [:> Virtuoso
-     {:style {:height "100%" :width "100%"}
-      :data space-array
-      :itemContent
-      (fn [index space-map]
-        (r/as-element
-         ^{:key (:id space-map)}
-         [space-icon-item space-map active-space-id]))}]))
-
+*/
 
 #+end_src
 
@@ -617,7 +605,6 @@ Keeping with our goal of easily mutated to look how you want!
 
 ****** TODO Swap home icon out with SVG
 #+begin_src clojurescript :tangle ../../../src/navigation/spaces/bar.cljs
-
 (defn spaces-sidebar []
   (let [spaces        @(re-frame/subscribe [:spaces/all])
         active-id     @(re-frame/subscribe [:spaces/active-id])
