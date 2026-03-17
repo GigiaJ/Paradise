@@ -53,9 +53,33 @@ the mechanism wishes to use
                     items)]
             (p/recur (inc i) (vec (or new-items items)))))
         (vec items)))))
+#+end_src
+
 
 
 **** Applying Generic Diffs
 
+This is a useful bit we put together through trial and error. With a
+mutex we can ensure tha we don't end up with weird rendering issues
+and our source of truth (rust-sdk) isn't impeded in its operational
+speed.
+#+begin_src clojurescript :tangle ../../src/client/diff_handler.cljs
+(defn apply-generic-diffs!
+  "A universal mutex-locked diff processor for the Matrix Rust SDK."
+  [{:keys [!mutex db-path parse-fn sync-event async-event updates]}]
+  (swap! !mutex
+         (fn [prev-promise]
+           (p/then prev-promise
+                   (fn []
+                     (let [current-list (get-in @re-frame.db/app-db db-path [])]
+                       (-> (apply-matrix-diffs current-list updates parse-fn)
+                           (p/then (fn [next-list]
+                                     (when sync-event
+                                       (re-frame/dispatch-sync (conj sync-event next-list)))
+                                     (when async-event
+                                       (re-frame/dispatch (conj async-event next-list)))))
+                           (p/catch (fn [err]
+                                      (log/error "Diff Panic at" db-path ":" err))))))))))
 
 #+end_src
+
