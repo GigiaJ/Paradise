@@ -16,11 +16,11 @@ This is more or less where the layout and control of the container's contents wi
    [container.call.core]
    [container.call.call-view :refer [call-view]]
    [container.timeline.base :refer [timeline]]
+   [container.members :refer [member-list]]
    [taoensso.timbre :as log]
    [promesa.core :as p]
    [reagent.core :as r]
    [reagent.dom.client :as rdom]))
-
 #+end_src
 
 
@@ -38,7 +38,7 @@ This is more or less where the layout and control of the container's contents wi
    [:h2 "Thread Context"]
    [:button {:on-click #(re-frame/dispatch [:ui/set-main-focus :timeline])} "Back to Timeline"]])
 
-(defn member-list []
+#_(defn member-list []
   [:div.member-list-wrapper
    [:ul.member-items
     [:li "@alice:matrix.org"]
@@ -49,6 +49,16 @@ This is more or less where the layout and control of the container's contents wi
    [:h3 "Active Threads"]
    [:div "Thread 1..."]
   [:div "Thread 2..."]])
+
+(defn search []
+  [:div.search
+   [search {:width "48px" :height "48px" :style {:margin-bottom "16px" :opacity 0.5}}]
+   [:div "Search messages in this room"]])
+
+(defn pins []
+  [:div.pin [pins {:width "48px" :height "48px" :style {:margin-bottom "16px" :opacity 0.5}}]
+   [:div "No pinned messages in this room"]])
+
 #+end_src
 
 
@@ -56,7 +66,6 @@ This is more or less where the layout and control of the container's contents wi
 **** Layout
 
 #+begin_src clojurescript :tangle ../../src/container/base.cljs
-
 (defn container []
   (let [main-focus    @(re-frame/subscribe [:container/main-focus])
         side-panel    @(re-frame/subscribe [:container/side-panel])
@@ -106,11 +115,9 @@ This is more or less where the layout and control of the container's contents wi
                :timeline [timeline :compact? true :hide-header? true]
                :members  [member-list]
                :threads  [thread-list]
-      ;;:search   [search-view]
-      ;;:pins     [pins-view]
+               :search   [search]
+               :pins     [pins]
                )]])
-
            ])
-
 )
 #+end_src
