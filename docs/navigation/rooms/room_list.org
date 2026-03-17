@@ -4,7 +4,7 @@
 **** Imports
 
 #+begin_src clojurescript :tangle ../../../src/navigation/rooms/room_list.cljs
-(ns room.room-list
+(ns navigation.rooms.room-list
   (:require
    [promesa.core :as p]
    [re-frame.core :as re-frame]
