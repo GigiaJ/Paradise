@@ -525,6 +525,55 @@
                   :mentions   msg-count}))))))
 
 
+#_(re-frame/reg-event-fx
+ :rooms/select
+ (fn [{:keys [db]} [_ room-id opts]]
+   (let [current-room-id    (:active-room-id db)
+         active-call-id     (get-in db [:call :active-room-id])
+         is-call-room?      (room-type-call? db room-id)
+         force-lobby?       (:force-lobby? opts)
+         focus-override     (:focus-override opts)
+         mobile?            (get-in db [:ui :mobile?])
+         join-directly?     (if force-lobby? false (not mobile?))
+         wipe-call-state?   (not is-call-room?)
+         swapping-calls?    (and active-call-id (not= active-call-id room-id) is-call-room?)
+         
+        
+         new-focus          (or focus-override (if is-call-room? :call :timeline))
+         
+         ;; Only clear the side panel if it's currently showing a timeline 
+         ;; and we are moving the main focus to the timeline.
+         side-panel-update  (if (and (= current-side-panel :timeline)
+                                     (= new-focus :timeline)
+                                     (not focus-override))
+                              nil
+                              current-side-panel)]
+
+     (if (= current-room-id room-id)
+       {:db (assoc-in db [:ui :sidebar-open?] false)}
+
+       (let [base-db (-> db
+                         (assoc :active-room-id room-id)
+                         (assoc-in [:ui :sidebar-open?] false)
+                         (assoc-in [:ui :main-focus] new-focus)
+                         (assoc-in [:ui :side-panel] side-panel-update))
+
+             dispatches (remove nil?
+                                [(when current-room-id [:sdk/cleanup-timeline current-room-id])
+                                 (when swapping-calls? [:call/hangup {:wipe-state? wipe-call-state?}])
+                                 [:sdk/boot-timeline room-id]
+                                 [:composer/load-draft room-id]
+                                 [:container/set-main-focus new-focus]
+                                 ;; If we have an override, ensure the side panel matches it
+                                 (when focus-override [:container/set-side-panel focus-override])
+                                 ;; If we cleared it above, ensure the UI state reflects that
+                                 (when (and (= current-side-panel :timeline) (nil? side-panel-update))
+                                   [:container/set-side-panel nil])
+                                 (when is-call-room? [:call/init-widget room-id {:join-directly? join-directly?}])])]
+
+         {:db base-db
+          :dispatch-n dispatches})))))
+
 (re-frame/reg-event-fx
  :rooms/select
  (fn [{:keys [db]} [_ room-id opts]]
@@ -536,7 +585,16 @@
          mobile?         (get-in db [:ui :mobile?])
          join-directly?  (if force-lobby? false (not mobile?))
          wipe-call-state? (not is-call-room?)
-         swapping-calls? (and active-call-id (not= active-call-id room-id) is-call-room?)]
+         swapping-calls? (and active-call-id (not= active-call-id room-id) is-call-room?)
+         current-side-panel (get-in db [:ui :side-panel])
+         _ (log/error )
+         _ (log/error current-side-panel)
+
+         side-panel-update  (if (and (= current-side-panel :timeline)
+                                     (= new-focus :timeline)
+                                     (not focus-override))
+                              nil
+                              current-side-panel)]
 
      (if (= current-room-id room-id)
        {:db (assoc-in db [:ui :sidebar-open?] false)}
@@ -556,6 +614,9 @@
                                  [:composer/load-draft room-id]
                                  [:container/set-main-focus new-focus]
                                  (when focus-override [:container/set-side-panel focus-override])
+                                 (when (and (= current-side-panel :timeline) (nil? side-panel-update))
+                                   [:container/set-side-panel nil])
+
                                  (when is-call-room? [:call/init-widget room-id {:join-directly? join-directly?}])])]
 
          {:db base-db
