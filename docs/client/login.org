@@ -68,18 +68,25 @@ This is a good spot to explore what the Rust FFI exposes to use in the client as
 Such as the space_service is useful to avoid manaul calculation of the spaces vs rooms.
 We can actually use it to get the rooms in a space for effortless filtering.
 #+begin_src clojurescript :tangle ../../src/client/login.cljs
+
 (defn start-sync! [client]
   (p/let [sync-service (-> (.syncService client) (.withOfflineMode) (.finish))
           rls-instance (.roomListService sync-service)
           room-list (.allRooms rls-instance)
           _ (rl/start-room-list-sync! room-list)
           _ (.start sync-service)
-          _ (init-space-service! client)
+         ;; cached-rooms (try (.rooms client) (catch :default _ []))
+        ;;  top-rooms    (take 5 cached-rooms)
+            _ (init-space-service! client)
           ]
-      (log/debug "Sync started.")))
+    #_(doseq [room top-rooms]
+      (let [room-id (or (try (.roomId room) (catch :default _ nil))
+                        (try (.id room) (catch :default _ nil)))]
+        (when room-id
+          (log/debug "HIT")
+          (re-frame/dispatch [:sdk/preload-timeline-safe room-id]))))
+    ))
 #+end_src
-
-
 
 This actually was relatively quick to figure out, but the client builder merely takes
 a few options. It is fairly dynamically configurable as is. Still, more time was spent
