@@ -1,10 +1,12 @@
-#+TITLE: Matrix Client Core
+
+** Core Namespace
 
 The initial namespace in which we start the application.
 We'll aim to keep everything neatly segmented, but as we start scaffolding
 components it is likely that there will be some residual items until we finalize
 pieces.
 
+**** Imports
 
 I feel it is important to mention that i18n is actually a precompile file from
 build hooks in order to enable easy
@@ -32,6 +34,8 @@ build hooks in order to enable easy
 #+end_src
 
 
+
+**** Reframe event and subscriptions 
 
 We intend to this to be passed as a callback where needed and handle any client
 operations here up until the point in which the client is 'started'.
@@ -139,6 +143,7 @@ Really just preparing for reagent, react, and re-frame
   (rdom/render @root [app]))
 #+end_src
 
+**** Initialize the application!
 
 Provides the entry-point for the application that Vite and the index.html enter from.
 #+begin_src clojurescript  :tangle ../../src/client/core.cljs
