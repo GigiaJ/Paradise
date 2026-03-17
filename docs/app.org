@@ -178,33 +178,6 @@ This at least begins starting that off by providing some useful enough defaults.
 
 
 
-**** Placeholders
-
-#+begin_src clojurescript :tangle ../src/app.cljs
-#_(defn call-view []
-  [:div.call-view {:style {:padding "20px" :background "#222" :color "#fff" :height "100%"}}
-   [:h2 "Active Call"]
-   [:button {:on-click #(re-frame/dispatch [:ui/set-main-focus :timeline])} "End Call"]])
-
-(defn thread-view []
-  [:div.thread-view {:style {:padding "20px" :height "100%"}}
-   [:h2 "Thread Context"]
-   [:button {:on-click #(re-frame/dispatch [:ui/set-main-focus :timeline])} "Back to Timeline"]])
-
-(defn member-list []
-  [:div.member-list-wrapper
-   [:ul.member-items
-    [:li "@alice:matrix.org"]
-    [:li "@bob:matrix.org"]]])
-
-(defn thread-list []
-  [:div.thread-list {:style {:padding "10px"}}
-   [:h3 "Active Threads"]
-   [:div "Thread 1..."]
-  [:div "Thread 2..."]])
-#+end_src
-
-
 
 **** Boot Screen / Loading Screen
 
