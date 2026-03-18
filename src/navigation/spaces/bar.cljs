@@ -270,7 +270,7 @@
      (when unread?
        [:div.space-notification-pill])
 
-     [avatar {:id id :name name :url (mxc->url avatar-url) :size 48 :shape :circle}]
+     [avatar {:id id :name name :url (mxc->url avatar-url) :size 48 :shape :squircle}]
 
      (when (and mentions (pos? mentions))
        [:div.space-mention-badge mentions])]))
