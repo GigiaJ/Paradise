@@ -449,14 +449,20 @@ individual's display name.
    [:div.separator-line]])
 
 (defn event-tile [item]
-  (let [{:keys [id sender-name sender-avatar content-tag content type reactions read-by ts is-own?]} item
+  (let [{:keys [id sender sender-name sender-avatar content-tag content type reactions read-by ts is-own?]} item
         active-room @(re-frame/subscribe [:rooms/active-id])
         my-profile  @(re-frame/subscribe [:sdk/profile])
         my-id       (:user-id my-profile)
         edit-context @(re-frame/subscribe [:input/context active-room])
         is-editing-this? (and (= (:mode edit-context) :edit)
                               (= (-> edit-context :target :id) id))
-        _ (log/debug item)
+        custom-tags @(re-frame/subscribe [:room/power-level-tags active-room])
+        members-map @(re-frame/subscribe [:room/members-map active-room])
+        member-data (get members-map sender)
+        popover-member {:user-id sender
+                        :display-name (or (:display-name member-data) sender-name)
+                        :avatar-url (or (:avatar-url member-data) sender-avatar)
+                        :power-level (or (:power-level member-data) 0)}
         open-menu-fn (fn [mx my]
                        (re-frame/dispatch
                         [:context-menu/open
@@ -473,7 +479,10 @@ individual's display name.
                               {:class "timeline-message"})}
        [:div.timeline-avatar-wrapper
         (when (= content-tag "MsgLike")
-          [avatar {:id id :name sender-name :url (mxc->url sender-avatar {:width 64 :height 64 :method "crop"}) :size 32 :status :online :shape :none}])]
+          [profile-popover-trigger popover-member custom-tags active-room
+           [avatar {:id sender :name sender-name
+                    :url (mxc->url sender-avatar)
+                    :size 32 :status :online :shape :none}]])]
 
        [:div.timeline-content-wrapper
         (when (= content-tag "MsgLike")
@@ -486,7 +495,9 @@ individual's display name.
                 reply-msg (when reply-id @(re-frame/subscribe [:timeline/event-by-id active-room reply-id]))]
             [:<>
              [:div.timeline-header
-              [:span.timeline-sender-name sender-name]]
+              [profile-popover-trigger popover-member custom-tags active-room
+               [:span.timeline-sender-name sender-name]]
+              [:span.timeline-timestamp (format-time ts)]]
              [:div.timeline-body
               (cond
                 is-editing-this? [inline-editor item active-room]
@@ -505,37 +516,23 @@ individual's display name.
           [system-event-view "@" (str sender-name " changed their profile.")]
 
           :else
-          [system-event-view "[!]" (str "Unknown event type: " content-tag)])
+          [system-event-view "!" (str "Unknown event type: " content-tag)])
 
-(when (or (seq reactions) (seq read-by))
-  [:div.timeline-metadata
-
-   (when (seq reactions)
-     [:div.reactions-row
-      (for [[emoji count] reactions]
-        ^{:key emoji}
-        [:span.reaction-pill
-         (if (clojure.string/starts-with? emoji "mxc://")
-           [:img.reaction-custom {:src (mxc->url emoji {:width 32 :height 32 :method "crop"})}]
-           [:span.reaction-emoji emoji])
-         [:span.reaction-count count]])
-      ])
-   (when (seq read-by)
-     [:div.read-receipts-row
-      [:span.receipt-count (str "✓ " (count read-by))]])])
-        #_(when (or (seq reactions) (seq read-by))
+        (when (or (seq reactions) (seq read-by))
           [:div.timeline-metadata
            (when (seq reactions)
              [:div.reactions-row
               (for [[emoji count] reactions]
                 ^{:key emoji}
                 [:span.reaction-pill
-                 {:on-click #(re-frame/dispatch [:msg/toggle-reaction id emoji])}
-                 (str emoji " " count)])])
+                 (if (clojure.string/starts-with? emoji "mxc://")
+                   [:img.reaction-custom {:src (mxc->url emoji {:width 32 :height 32 :method "crop"})}]
+                   [:span.reaction-emoji emoji])
+                 [:span.reaction-count count]])])
            (when (seq read-by)
              [:div.read-receipts-row
-              [:span.receipt-count (str "✓ " (count read-by))]])])
-        ]])))
+              [:span.receipt-count (str "✓ " (count read-by))]])])]])))
+
 #+end_src
 
 
