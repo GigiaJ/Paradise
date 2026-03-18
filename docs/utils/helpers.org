@@ -249,3 +249,22 @@ We need to be able to convert timestamps to date otherwise people might not be t
 #+end_src
 
 
+
+**** Arbitrary Fetch Events
+I wrote on this for Emotes, but as Cinny uses a custom state event for making 'roles' for power levels
+we are finding more and more that we should have a method that enables the arbitrary retrieval of them.
+
+#+begin_src clojurescript :tangle ../../src/utils/helpers.cljs
+(defn fetch-state-event [homeserver token room-id event-type state-key]
+  (let [clean-hs (clojure.string/replace homeserver #"/+$" "")
+        key-path (if (empty? state-key) "" (str "/" state-key))
+        url      (str clean-hs "/_matrix/client/v3/rooms/" room-id "/state/" event-type key-path)]
+    (-> (p/let [resp (js/fetch url #js {:headers #js {:Authorization (str "Bearer " token)}})]
+          (when (.-ok resp)
+            (.json resp)))
+        (p/catch (constantly nil)))))
+#+end_src
+
+
+
+
