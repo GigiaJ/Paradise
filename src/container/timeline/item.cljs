@@ -387,7 +387,13 @@
         edit-context @(re-frame/subscribe [:input/context active-room])
         is-editing-this? (and (= (:mode edit-context) :edit)
                               (= (-> edit-context :target :id) id))
-        _ (log/debug item)
+        custom-tags @(re-frame/subscribe [:room/power-level-tags active-room])
+        members-map @(re-frame/subscribe [:room/members-map active-room])
+        member-data (get members-map sender)
+        popover-member {:user-id sender
+                        :display-name (or (:display-name member-data) sender-name)
+                        :avatar-url (or (:avatar-url member-data) sender-avatar)
+                        :power-level (or (:power-level member-data) 0)}
         open-menu-fn (fn [mx my]
                        (re-frame/dispatch
                         [:context-menu/open
