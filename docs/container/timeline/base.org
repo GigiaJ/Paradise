@@ -320,6 +320,25 @@ I will segment these another time
     width: 100%;
 }
 
+.timeline-header {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    margin-bottom: 4px;
+}
+
+.timeline-sender-name {
+    font-weight: 600;
+    font-size: 0.95rem;
+    color: var(--text-primary);
+}
+
+.timeline-timestamp {
+    font-size: 0.75rem;
+    color: var(--text-secondary, #888888);
+    font-weight: 400;
+}
+
 .timeline-empty {
     display: flex;
     align-items: center;
