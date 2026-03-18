@@ -10,7 +10,6 @@
             [reagent.core :as r]
             [utils.helpers :refer [mxc->url]]
             ["generated-compat" :as sdk :refer [MessageType MessageFormat MediaSource UploadSource UploadParameters]]
-            
             ))
 
 (re-frame/reg-event-fx
