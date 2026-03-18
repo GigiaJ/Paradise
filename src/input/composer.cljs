@@ -11,6 +11,7 @@
             ["@tiptap/starter-kit" :default StarterKit]
             ["@tiptap/extension-placeholder" :default Placeholder]
             ["@tiptap/extension-mention" :default Mention]
+            ["@tiptap/extension-link" :default Link]
             ["@tiptap/core" :refer [Extension Node mergeAttributes]]
             ["prosemirror-state" :refer [Plugin PluginKey]]
             ["generated-compat" :as sdk :refer [MessageType MessageFormat MediaSource UploadSource UploadParameters]]))
@@ -30,6 +31,51 @@
     ""))
 
 (defn- get-matrix-formatted-body [editor]
+  (let [json (.. editor getJSON -content)
+        node->html (fn node->html [node]
+                     (let [type  (.-type node)
+                           attrs (.-attrs node)
+                           marks (.-marks node)
+                           
+                           ;; 1. Get the base content (text or emote)
+                           base-content 
+                           (cond
+                             (= type "customEmote")
+                             (let [render-vec (renderHtml #js {:HTMLAttributes attrs})
+                                   html-attrs (second render-vec)
+                                   shortcode  (aget attrs "shortcode")
+                                   mxc-uri    (url->mxc (aget attrs "src"))]
+                               (str "<img data-mx-emoticon src=\"" mxc-uri "\""
+                                    " alt=\":" shortcode ":\" title=\":" shortcode ":\""
+                                    " style=\"" (aget html-attrs "style") "\">"))
+                             
+                             (= type "text") (.-text node)
+                             :else "")
+                           
+                           ;; 2. If the text has formatting (like a Link), wrap it!
+                           with-marks 
+                           (if marks
+                             (reduce (fn [html mark]
+                                       (case (.-type mark)
+                                         "link"   (str "<a href=\"" (.. mark -attrs -href) "\">" html "</a>")
+                                         "bold"   (str "<strong>" html "</strong>")
+                                         "italic" (str "<em>" html "</em>")
+                                         "strike" (str "<del>" html "</del>")
+                                         "code"   (str "<code>" html "</code>")
+                                         html))
+                                     base-content
+                                     (js/Array.from marks))
+                             base-content)]
+                       with-marks))]
+    
+    (str/join ""
+      (map (fn [p]
+             (str "<p>"
+                  (str/join "" (map node->html (js/Array.from (or (.-content p) #js []))))
+                  "</p>"))
+           (js/Array.from json)))))
+
+  #_(defn- get-matrix-formatted-body [editor]
   (let [json (.. editor getJSON -content)
         node->html (fn node->html [node]
                      (let [type (.-type node)
@@ -144,6 +190,9 @@
                                                                :suggestion (emoji-suggestion-options)})
                                       (.configure Mention #js {:name "userMention"
                                                                :suggestion (user-mention-options)})
+                                      (.configure Link #js {:openOnClick false
+                                                            :autolink true
+                                                            :linkOnPaste true})
                                       ]
                      :content (or loaded-text "")
                      :editable (boolean active-id)
