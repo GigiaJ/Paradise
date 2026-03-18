@@ -380,7 +380,7 @@
    [:div.separator-line]])
 
 (defn event-tile [item]
-  (let [{:keys [id sender-name sender-avatar content-tag content type reactions read-by ts is-own?]} item
+  (let [{:keys [id sender sender-name sender-avatar content-tag content type reactions read-by ts is-own?]} item
         active-room @(re-frame/subscribe [:rooms/active-id])
         my-profile  @(re-frame/subscribe [:sdk/profile])
         my-id       (:user-id my-profile)
