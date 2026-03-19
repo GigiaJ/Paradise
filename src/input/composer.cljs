@@ -17,11 +17,18 @@
             ["generated-compat" :as sdk :refer [MessageType MessageFormat MediaSource UploadSource UploadParameters]]))
 
 (defn renderHtml [^js props]
-                      #js ["img" (mergeAttributes
-                                  (.-HTMLAttributes props)
-                                  #js {"data-emote" true
-                                       "class" "chat-input-emote"
-                                       "style" "height: 1.5em; width: auto; vertical-align: middle; display: inline-block;"})])
+  (let [attrs         (.-HTMLAttributes props)
+        raw-shortcode (aget attrs "shortcode")
+        display-code  (when raw-shortcode
+                        (str ":" (str/replace (str raw-shortcode) #":" "") ":"))]
+    #js ["img" (mergeAttributes
+                attrs
+                #js {"data-emote" true
+                     "class"      "chat-input-emote"
+                     "alt"        display-code
+                     "shortcode"  display-code
+                     "title"      display-code
+                     "style"      "height: 1.5em; width: auto; vertical-align: middle; display: inline-block;"})]))
 
 (defn prepare-html-for-editor [raw-html]
   (if (string? raw-html)
