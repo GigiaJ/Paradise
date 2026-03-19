@@ -46,13 +46,10 @@
                            base-content
                            (cond
                              (= type "customEmote")
-                             (let [render-vec (renderHtml #js {:HTMLAttributes attrs})
-                                   html-attrs (second render-vec)
-                                   shortcode  (aget attrs "shortcode")
-                                   mxc-uri    (url->mxc (aget attrs "src"))]
-                               (str "<img data-mx-emoticon src=\"" mxc-uri "\""
-                                    " alt=\":" shortcode ":\" title=\":" shortcode ":\""
-                                    " style=\"" (aget html-attrs "style") "\">"))
+                             (let [shortcode  (aget attrs "shortcode")
+                                   mxc-uri    (or (aget attrs "mxc") (url->mxc (aget attrs "src")))]
+                               (str "<img data-mx-emoticon=\"\" src=\"" mxc-uri "\""
+                                    " alt=\":" shortcode ":\" title=\":" shortcode ":\" height=\"32\">"))
                              (= type "text") (.-text node)
                              :else "")
                            with-marks
