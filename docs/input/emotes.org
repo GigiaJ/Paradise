@@ -46,6 +46,23 @@ https://spec.matrix.org/latest/client-server-api/#get_matrixclientv3roomsroomids
 
 ****** TODO Need to add check for room emotes
 
+
+***** Example Event
+
+#+begin_src clojurescript
+#js {:content #js {},
+     :event_id "$event-id",
+     :origin_server_ts 1773846430727,
+     :room_id "!room-id:homeserver.tld",
+     :sender "@g:homeserver.tld",
+     :state_key "test",
+     :type "im.ponies.room_emotes",
+     :unsigned #js {:prev_content #js {:pack #js {:display_name "test"}},
+     :prev_sender "@g:homeserver.tld",
+     :replaces_state "$state-id"}}
+#+end_src
+
+
 #+begin_src clojurescript :tangle ../../src/input/emotes.cljs
 (re-frame/reg-event-fx
  :sdk/fetch-all-emotes
