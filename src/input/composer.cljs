@@ -49,7 +49,7 @@
                              (let [shortcode  (aget attrs "shortcode")
                                    mxc-uri    (or (aget attrs "mxc") (url->mxc (aget attrs "src")))]
                                (str "<img data-mx-emoticon=\"\" src=\"" mxc-uri "\""
-                                    " alt=\":" shortcode ":\" title=\":" shortcode ":\" height=\"32\">"))
+                                    " alt=\"" shortcode ":\" title=\"" shortcode ":\" height=\"32\">"))
                              (= type "text") (.-text node)
                              :else "")
                            with-marks
