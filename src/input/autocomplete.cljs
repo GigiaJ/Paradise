@@ -25,7 +25,7 @@
 
 (re-frame/reg-sub
  :emoji/filtered-suggestions
- :<- [:emoji/all-packs]
+ :<- [:emoji/active-set]
  :<- [:suggestion/state]
  (fn [[packs state] _]
    (let [query (str/lower-case (str (or (:query state) "")))]
