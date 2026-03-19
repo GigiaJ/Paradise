@@ -560,6 +560,7 @@
                                 [(when current-room-id [:sdk/cleanup-timeline current-room-id])
                                  (when swapping-calls? [:call/hangup {:wipe-state? wipe-call-state?}])
                                  [:sdk/boot-timeline room-id]
+                                 [:sdk/fetch-room-emotes :room room-id]
                                  [:composer/load-draft room-id]
                                  [:container/set-main-focus new-focus]
                                  (when focus-override [:container/set-side-panel focus-override])
