@@ -243,7 +243,7 @@
                 (assoc :active-room-id nil))
         :dispatch-n (if space-id
                       [[:sdk/paginate-space space-id]
-;;                       [:room-list/apply-filter "all"]
+                       [:sdk/fetch-room-emotes :space space-id]
                        [:sdk/fetch-space-hierarchy space-id]]
                       [[:room-list/apply-filter "people"]])}))))
 
