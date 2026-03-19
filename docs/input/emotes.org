@@ -43,8 +43,15 @@ have no overhead.
 The actual endpoint is described here in the Matrix Spec:
 https://spec.matrix.org/latest/client-server-api/#get_matrixclientv3roomsroomidstateeventtypestatekey
 
+https://github.com/matrix-org/matrix-spec-proposals/pull/2545
+
 
 ****** TODO Need to add check for room emotes
+
+MSC2545 has Space-wide emotes. So we need to check for them when swapping into
+a space. We should also be sure we clear the space emotes when we swap to
+another space (unless the user has made them set as global).
+
 
 
 ***** Example Event
