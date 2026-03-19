@@ -31,13 +31,12 @@
          (str server-base base-path))))))
 
 (defn url->mxc [url]
-  (when (string? url)
-    (let [server-base (or js/process.env.MATRIX_HOMESERVER
-                          (or js/window.MATRIX_HOMESERVER "https://matrix.org"))
-          pattern (re-pattern (str "^" server-base "/_matrix/client/v1/media/(download|thumbnail)/"))]
-      (if (str/includes? url server-base)
-        (str "mxc://" (str/replace url pattern ""))
-        url))))
+  (if (and (string? url) (str/includes? url "/_matrix/"))
+    (let [parts (str/split url #"/media/(?:download|thumbnail)/")]
+      (if (= (count parts) 2)
+        (str "mxc://" (second parts))
+        url))
+    url))
 
 
 (def max-tag-nesting 100)
