@@ -553,7 +553,11 @@ received an update.
        [:div.timeline-empty "Select a room to start chatting."]
        [:<>
         [virtualized-timeline events active-id]
-        [message-input]])]))
+        [message-input]
+        [status-indicator active-id]
+        ])]))
+
+
 #+end_src
 
 
