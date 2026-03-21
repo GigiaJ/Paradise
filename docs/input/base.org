@@ -428,7 +428,7 @@ Ideally, we should break this apart more later.
          (when (and context (= (:mode context) :reply))
            [:div.input-context-banner
             [:div.context-info
-             [:span (str "Replying to " (-> context :target :sender-name))]]
+             [:span (str "Replying to " (truncate-name (-> context :target :sender-name) 32))]]
             [:button.context-cancel-btn
              {:on-click #(re-frame/dispatch [:input/clear-context active-id])} "✖"]])
 
