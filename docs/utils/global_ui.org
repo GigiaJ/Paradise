@@ -15,6 +15,7 @@ them collected together
    [re-frame.core :as re-frame]
    [re-frame.db :as db]
    [reagent.core :as r]
+   [utils.svg :as icons]
 ;;   [input.emotes :refer [emoji-sticker-board]]
    ))
 #+end_src
