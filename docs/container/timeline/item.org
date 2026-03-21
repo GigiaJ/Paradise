@@ -626,7 +626,7 @@ individual's display name.
                    [:img.reaction-custom {:src (mxc->url emoji {:width 32 :height 32 :method "crop"})}]
                    [:span.reaction-emoji emoji])
                  [:span.reaction-count count]])])
-           (when (seq read-by)
+           #_(when (seq read-by)
              [:div.read-receipts-row
               [:span.receipt-count (str "✓ " (count read-by))]])])]])))
 
