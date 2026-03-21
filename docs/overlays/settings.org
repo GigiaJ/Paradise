@@ -331,7 +331,12 @@ Inside the modal this is our sidebar options.
    [:div.settings-tab
     {:class (when (= active-tab :notifications) "is-active")
      :on-click #(re-frame/dispatch [:settings/set-tab :notifications])}
-    "Notifications"]])
+    "Notifications"]
+   [:div.settings-group-label {:style {:margin-top "1rem"}} "App"]
+   [:div.settings-tab
+    {:class (when (= active-tab :about) "is-active")
+     :on-click #(re-frame/dispatch [:settings/set-tab :about])}
+    "About"]])
 
 
 #+end_src
