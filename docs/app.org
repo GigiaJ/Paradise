@@ -91,14 +91,6 @@ https://day8.github.io/re-frame/application-state/
 
 
 #+begin_src clojurescript :tangle ../src/app.cljs
-#_(re-frame/reg-sub
- :auth/status
- (fn [db _] (:auth-status db)))
-
-#_(re-frame/reg-sub
- :auth/error
- (fn [db _] (:login-error db)))
-
 (re-frame/reg-event-db
  :ui/set-sidebar
  (fn [db [_ open?]]
@@ -113,29 +105,6 @@ https://day8.github.io/re-frame/application-state/
  :ui/sidebar-open?
  (fn [db _]
    (get-in db [:ui :sidebar-open?] false)))
-
-#_
-(re-frame/reg-event-db
- :ui/set-main-focus
- (fn [db [_ focus]]
-   (assoc db :main-focus focus)))
-
-#_
-(re-frame/reg-event-db
- :ui/set-side-panel
- (fn [db [_ panel]]
-   (assoc db :side-panel panel)))
-
-#_(re-frame/reg-sub
- :ui/main-focus
- (fn [db _]
-   (:main-focus db :timeline)))
-
-#_
-(re-frame/reg-sub
- :ui/side-panel
- (fn [db _]
-   (:side-panel db nil)))
 
 (re-frame/reg-event-db
  :ui/window-resized
