@@ -86,10 +86,12 @@ each of these later.
  :sdk/cleanup-timeline
  (fn [{:keys [db]} [_ room-id]]
    (when-let [subs (get-in db [:timeline-subs room-id])]
-     (when-let [tl-handle (:tl-handle subs)]
-       (.cancel tl-handle))
-     (when-let [pag-handle (:pag-handle subs)]
-       (.cancel pag-handle)))
+     (doseq [handle-key [:tl-handle :pag-handle :typing-handle]]
+       (when-let [handle (get subs handle-key)]
+         (try
+           (.cancel handle)
+           (catch :default e
+             (log/warn "Failed to cancel handle:" handle-key e))))))
    {:db (update db :timeline-subs dissoc room-id)}))
 
 (re-frame/reg-event-db
