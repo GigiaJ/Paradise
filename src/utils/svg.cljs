@@ -153,3 +153,62 @@
   [icon-base (merge {:width "20px" :height "20px"} props)
    [:path {:d "M22 2L11 13"}]
    [:path {:d "M22 2L15 22L11 13L2 9L22 2Z"}]])
+
+(defn reply [props]
+  [icon-base props
+   [:polyline {:points "9 17 4 12 9 7"}]
+   [:path {:d "M20 18v-2a4 4 0 0 0-4-4H4"}]])
+
+(defn edit [props]
+  [icon-base props
+   [:path {:d "M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"}]
+   [:path {:d "M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"}]])
+
+(defn exit [props]
+  [icon-base props
+   [:line {:x1 "18" :y1 "6" :x2 "6" :y2 "18"}]
+   [:line {:x1 "6" :y1 "6" :x2 "18" :y2 "18"}]])
+
+(defn thread [props]
+  [icon-base props
+   [:circle {:cx "7" :cy "7" :r "3"}]
+   [:circle {:cx "17" :cy "17" :r "3"}]
+   [:path {:d "M7 10v4a2 2 0 0 0 2 2h4"}]
+   [:path {:d "M17 14v-4a2 2 0 0 0-2-2h-4"}]])
+
+(defn copy [props]
+  [icon-base props
+   [:rect {:x "9" :y "9" :width "13" :height "13" :rx "2" :ry "2"}]
+   [:path {:d "M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"}]])
+
+(defn link [props]
+  [icon-base props
+   [:path {:d "M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"}]
+   [:path {:d "M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"}]])
+
+(defn trash [props]
+  [icon-base props
+   [:polyline {:points "3 6 5 6 21 6"}]
+   [:path {:d "M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"}]
+   [:line {:x1 "10" :y1 "11" :x2 "10" :y2 "17"}]
+   [:line {:x1 "14" :y1 "11" :x2 "14" :y2 "17"}]])
+
+(defn more [props]
+  [icon-base props
+   [:circle {:cx "12" :cy "12" :r "1"}]
+   [:circle {:cx "19" :cy "12" :r "1"}]
+   [:circle {:cx "5" :cy "12" :r "1"}]])
+
+(defn double-check [props]
+  [icon-base props
+   [:path {:d "M7 12l5 5L22 7"}]
+   [:path {:d "M2 12l5 5L9 15"}]])
+
+(defn typing-dots [props]
+  [icon-base props
+   [:circle {:cx "5" :cy "12" :r "1.5"}
+    [:animate {:attributeName "opacity" :values "0.3;1;0.3" :dur "1.2s" :repeatCount "indefinite"}]]
+   [:circle {:cx "12" :cy "12" :r "1.5"}
+    [:animate {:attributeName "opacity" :values "0.3;1;0.3" :dur "1.2s" :begin "0.2s" :repeatCount "indefinite"}]]
+   [:circle {:cx "19" :cy "12" :r "1.5"}
+    [:animate {:attributeName "opacity" :values "0.3;1;0.3" :dur "1.2s" :begin "0.4s" :repeatCount "indefinite"}]]])
