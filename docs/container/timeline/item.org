@@ -531,6 +531,8 @@ This is a very, very sloppy event-tile for now. We can probably make this less
 silly later, but it does good enough to actually render the message and the
 individual's display name.
 
+***** TODO We should expose the read by per message and display the avatars (and open an interface on click to show all read and timestamps)
+
 #+begin_src clojurescript :tangle ../../../src/container/timeline/item.cljs
 (defn system-event-view [icon text]
   [:div.timeline-system-event
