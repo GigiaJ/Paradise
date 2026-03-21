@@ -416,7 +416,9 @@ logic that is to be used from the main application itself.
 (ns service-worker-handler
   (:require
             [taoensso.timbre :as log]
+            [client.config :refer [check-remote-version]]
             [re-frame.db :as db]
+            [promesa.core :as p]
             [re-frame.core :as re-frame]))
 #+end_src
 
