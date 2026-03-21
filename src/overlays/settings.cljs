@@ -186,7 +186,12 @@
    [:div.settings-tab
     {:class (when (= active-tab :notifications) "is-active")
      :on-click #(re-frame/dispatch [:settings/set-tab :notifications])}
-    "Notifications"]])
+    "Notifications"]
+   [:div.settings-group-label {:style {:margin-top "1rem"}} "App"]
+   [:div.settings-tab
+    {:class (when (= active-tab :about) "is-active")
+     :on-click #(re-frame/dispatch [:settings/set-tab :about])}
+    "About"]])
 
 
 
@@ -414,6 +419,26 @@
         {:on-click #(re-frame/dispatch [:auth/start-login-flow])}
         "+ Add Account"]]]]))
 
+(defn about-tab []
+  (let [version  @(re-frame/subscribe [:app/version])
+        app-name (:app-name config "Matrix Client")]
+    [:div.settings-tab-content
+     [:h2.settings-heading "About"]
+     [:div.settings-section
+      [:div.about-header
+       [:h3 app-name]
+       [:div.version-badge (str "v" version)]]
+      [:p.verification-description
+       "A lightweight, modern Matrix client built with ClojureScript and Re-frame utilizing the Rust-SDK through WASM. Somewhat documented using org-mode."]
+      [:div.settings-spacer]
+      [:h3.settings-subheading "Updates"]
+      [:p.verification-description
+       "The app automatically checks for updates in the background, but you can also check manually."]
+
+      [:button.form-button
+       {:on-click #(re-frame/dispatch [:app/poll-version true])}
+       "Check for Updates"]]]))
+
 (defn settings-modal []
   (let [is-open?   @(re-frame/subscribe [:settings/is-open?])
         active-tab @(re-frame/subscribe [:settings/active-tab])
@@ -432,6 +457,7 @@
          (case active-tab
            :my-account    [my-account-tab profile]
            :verification  [verification-tab]
-           :accounts [accounts-tab]
+           :accounts      [accounts-tab]
            :notifications [notifications-tab]
+           :about         [about-tab]
            [:div {:style {:color "#fff"}} "Tab not found"])]]])))
