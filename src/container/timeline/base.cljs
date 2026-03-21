@@ -7,14 +7,15 @@
             ["react-virtuoso" :refer [Virtuoso]]
             [reagent.core :as r]
             [reagent.dom.client :as rdom]
-            [utils.helpers :refer [mxc->url sanitize-custom-html format-divider-date]]
+            [utils.helpers :refer [mxc->url sanitize-custom-html format-divider-date format-readers join-names]]
             [utils.global-ui :refer [avatar long-press-props swipe-to-action-wrapper]]
-            [container.timeline.item :refer [event-tile reify-item]]
+            [utils.svg :as icons]
+            [container.timeline.item :refer [event-tile wrap-item]]
             [container.reusable :refer [room-header]]
             [input.base :refer [message-input inline-editor]]
             [navigation.rooms.room-summary :refer [build-room-summary]]
             [client.diff-handler :refer [apply-matrix-diffs]]
-            ["generated-compat" :as sdk :refer [RoomMessageEventContentWithoutRelation MessageType EditedContent]]
+            ["generated-compat" :as sdk :refer [RoomMessageEventContentWithoutRelation MessageType EditedContent TimelineConfiguration]]
             ))
 
 (defonce !timeline-queues (atom {}))
@@ -27,7 +28,7 @@
                    (fn [prev-promise]
                      (-> prev-promise
                          (p/then (fn [current-events]
-                                   (apply-matrix-diffs current-events updates reify-item)))
+                                   (apply-matrix-diffs current-events updates wrap-item)))
                          (p/then (fn [next-events]
                                    (log/debug "Timeline diffs finished")
                                    (re-frame/dispatch [:sdk/update-timeline room-id next-events])
@@ -53,17 +54,18 @@
  :sdk/cleanup-timeline
  (fn [{:keys [db]} [_ room-id]]
    (when-let [subs (get-in db [:timeline-subs room-id])]
-     (when-let [tl-handle (:tl-handle subs)]
-       (.cancel tl-handle))
-     (when-let [pag-handle (:pag-handle subs)]
-       (.cancel pag-handle)))
+     (doseq [handle-key [:tl-handle :pag-handle :typing-handle]]
+       (when-let [handle (get subs handle-key)]
+         (try
+           (.cancel handle)
+           (catch :default e
+             (log/warn "Failed to cancel handle:" handle-key e))))))
    {:db (update db :timeline-subs dissoc room-id)}))
 
 (re-frame/reg-event-db
  :sdk/update-pagination-status
  (fn [db [_ room-id status]]
    (assoc-in db [:timeline-pagination room-id] status)))
-
 
 (re-frame/reg-event-fx
  :sdk/boot-timeline
@@ -72,15 +74,46 @@
      (do (log/warn "Prevented duplicate timeline boot for:" room-id) {})
      (let [client (:client db)]
        (when-let [room (.getRoom client room-id)]
-         (-> (p/let [timeline        (.timeline room)
+         (-> (p/let [
+                     config (.create TimelineConfiguration
+                                     #js {:focus             (new (.. sdk -TimelineFocus -Live) #js {:hideThreadedEvents false} )
+                                          :filter            (new (.. sdk -TimelineFilter -All))
+                                          :internalIdPrefix  js/undefined
+                                          :dateDividerMode   (.-Daily sdk/DateDividerMode)
+                                          :trackReadReceipts true
+                                          :reportUtds        false})
+
+                     ;;timeline (.timeline room) ;; if no configs are wanted
+                     timeline        (.timelineWithConfiguration room config)
                      listener        #js {:onUpdate (fn [diffs] (apply-timeline-diffs! room-id diffs))}
 
+
+
+typing-listener #js {:call (fn [user-ids]
+                                     (log/error "TYPING UPDATE:" user-ids)
+                                     (re-frame/dispatch [:sdk/update-typing-users room-id user-ids]))}
+        typing-handle-1 (.subscribeToTypingNotifications room typing-listener)
+        _ (log/error "First handle registered:" typing-handle-1)
+        _ (js/setTimeout
+            (fn []
+              (log/error "Registering second 'kick' subscriber for room:" room-id)
+              (.subscribeToTypingNotifications room typing-listener))
+            5000)
+
+
+
+
                      timeline-handle (.addListener timeline listener)
+
+
+
                      pag-listener    #js {:onUpdate #(re-frame/dispatch [:sdk/update-pagination-status room-id %])}
                      pag-handle      (.subscribeToBackPaginationStatus timeline pag-listener)
                      ]
                (.paginateBackwards timeline 5)
-             (re-frame/dispatch [:sdk/save-timeline-sub room-id timeline timeline-handle pag-handle]))
+
+               (re-frame/dispatch [:sdk/save-timeline-sub room-id timeline timeline-handle pag-handle typing-handle])
+               )
              (.catch #(js/console.error "Boot failed:" %))))
        {}))))
 
@@ -103,11 +136,12 @@
 
 (re-frame/reg-event-db
  :sdk/save-timeline-sub
- (fn [db [_ room-id timeline tl-handle pag-handle]]
+ (fn [db [_ room-id timeline tl-handle pag-handle typing-handle]]
    (assoc-in db [:timeline-subs room-id]
-             {:timeline timeline
-              :tl-handle tl-handle
-              :pag-handle pag-handle})))
+             {:timeline      timeline
+              :tl-handle     tl-handle
+              :pag-handle    pag-handle
+              :typing-handle typing-handle})))
 
 (re-frame/reg-event-fx
  :sdk/back-paginate
@@ -137,80 +171,207 @@
  :timeline/current-events
  (fn [db _]
    (let [active-room (:active-room-id db)
-         raw-events  (get-in db [:timeline active-room] [])]
-     (->> raw-events
-          (reduce (fn [acc e]
-                    (let [id-key   (or (:internal-id e) (:id e))
-                          existing (get acc id-key)]
-                      (if (and existing
-                               (not (:is-edited? e))
-                               (<= (:ts e) (:ts existing)))
-                        acc
-                        (assoc acc id-key e))))
-                  {})
-          (vals)
-          (sort-by :ts)
-          (vec)))))
+         raw-events  (get-in db [:timeline active-room] [])
+         sorted-events (->> raw-events
+                            (reduce (fn [acc e]
+                                      (let [id-key   (or (:internal-id e) (:id e))
+                                            existing (get acc id-key)]
+                                        (if (and existing
+                                                 (not (:is-edited? e))
+                                                 (<= (:ts e) (:ts existing)))
+                                          acc
+                                          (assoc acc id-key e))))
+                                    {})
+                            (vals)
+                            (sort-by :ts))]
+     (first
+      (reduce
+       (fn [[acc prev-event] curr-event]
+         (let [merge? (and prev-event
+                           (= (:type curr-event) :event)
+                           (= (:type prev-event) :event)
+                           (= (:sender-id curr-event) (:sender-id prev-event))
+                           (< (- (:ts curr-event) (:ts prev-event)) 300000))]
+           [(conj acc (assoc curr-event :merge-with-prev? merge?)) curr-event]))
+       [[] nil]
+       sorted-events)))))
+
+
+
+(re-frame/reg-sub
+ :timeline/latest-readers
+ (fn [_ _]
+   [(re-frame/subscribe [:timeline/current-events])
+    (re-frame/subscribe [:sdk/profile])])
+ (fn [[events profile] _]
+   (let [my-id        (:user-id profile)
+         actual-events (filter #(= (:type %) :event) events)
+         latest-event  (last actual-events)
+         read-by       (or (:read-by latest-event) [])
+         others        (remove #(= % my-id) read-by)]
+     others)))
 
 (re-frame/reg-sub
  :timeline/loading-more?
  (fn [db [_ room-id]]
    (get-in db [:timeline/loading-more? room-id] false)))
 
-(defn virtualized-timeline [events room-id]
+(defn followers-indicator [active-room]
+  (let [reader-ids  @(re-frame/subscribe [:timeline/latest-readers])
+        members-map @(re-frame/subscribe [:room/members-map active-room])
+        has-readers? (boolean (seq reader-ids))
+        names (when has-readers?
+                (map (fn [id] (or (:display-name (get members-map id)) id))
+                     reader-ids))]
+    [:div.followers-indicator
+     {:class (when has-readers? "is-visible")}
+     (when has-readers?
+       [icons/double-check {:width "14px" :height "14px"}])
+     [:span.text
+      (if has-readers?
+        (format-readers names)
+        "\u00A0")]
+     ]))
+
+
+
+(re-frame/reg-event-db
+ :sdk/clear-stale-typing
+ (fn [db [_ room-id]]
+   (let [data (get-in db [:typing-users room-id])]
+     (if (and data (> (- (js/Date.now) (:last-update data)) 6000))
+       (update db :typing-users dissoc room-id)
+       db))))
+
+
+
+(re-frame/reg-event-db
+ :sdk/update-typing-users
+ (fn [db [_ room-id user-ids]]
+   (let [users (js->clj user-ids)]
+     (if (empty? users)
+       (dissoc-in db [:typing-users room-id])
+       (do
+         (js/setTimeout
+          #(re-frame/dispatch [:sdk/clear-stale-typing room-id])
+          6500)
+         (assoc-in db [:typing-users room-id]
+                   {:users users
+                    :last-update (js/Date.now)}))))))
+
+(re-frame/reg-event-db
+ :sdk/clear-stale-typing
+ (fn [db [_ room-id]]
+   (let [data (get-in db [:typing-users room-id])]
+     (if (and data (> (- (js/Date.now) (:last-update data)) 6000))
+       (update db :typing-users dissoc room-id)
+       db))))
+
+(re-frame/reg-event-fx
+ :sdk/update-typing-users
+ (fn [{:keys [db]} [_ room-id user-ids]]
+   (let [users (js->clj user-ids)]
+     (if (empty? users)
+       {:db (update db :typing-users dissoc room-id)}
+       {:db (assoc-in db [:typing-users room-id]
+                      {:users users
+                       :last-update (js/Date.now)})
+        :dispatch-later [{:ms 7000
+                          :dispatch [:sdk/clear-stale-typing room-id]}]}))))
+
+
+
+(re-frame/reg-sub
+ :room/typing-users
+ (fn [db [_ room-id]]
+   (let [data (get-in db [:typing-users room-id])]
+     (if (and data
+              (< (- (js/Date.now) (:last-update data)) 6000))
+       (:users data)
+       []))))
+
+
+(defn status-indicator [active-room]
+  (let [typing-info @(re-frame/subscribe [:room/typing-users active-room])
+        reader-ids  @(re-frame/subscribe [:timeline/latest-readers])
+        members-map @(re-frame/subscribe [:room/members-map active-room])
+        profile     @(re-frame/subscribe [:sdk/profile])
+        my-id       (:user-id profile)
+        typing-ids    (if (map? typing-info) (:users typing-info) typing-info)
+        others-typing (filterv #(not= % my-id) (or typing-ids []))
+        has-typists?  (not-empty others-typing)
+        has-readers?  (not-empty reader-ids)
+        is-visible?   (or has-typists? has-readers?)
+        ]
+      [:div.followers-indicator
+       {:class (when is-visible? "is-visible")
+        :key (str active-room "-status-bar")}
+       (cond
+         has-typists?
+         [:div.status-content {:key "typing"}
+          [icons/typing-dots {:style {:color "var(--cp-text-muted)"}}]
+          [:span.text
+           (str (join-names (map #(or (:display-name (get members-map %)) %) others-typing))
+                " is typing...")]]
+         has-readers?
+         [:div.status-content {:key "readers"}
+          [icons/double-check {:width "14px" :height "14px"}]
+          [:span.text (format-readers (map #(or (:display-name (get members-map %)) %) reader-ids))]]
+         :else
+         [:span.text {:key "empty"} "\u00A0"])]))
+
+(defn virtualized-timeline [initial-events initial-room-id]
   (r/with-let [!start-index    (r/atom 1000000)
                !prev-first-id  (r/atom nil)
                !prev-count     (r/atom 0)
                !initial-idx    (r/atom nil)
                !at-bottom?     (r/atom true)
                !virtuoso-ref   (r/atom nil)]
-    (let [event-array (to-array events)
-          cnt         (count event-array)
-          first-id    (some-> (aget event-array 0) :id)
-          loading?    @(re-frame/subscribe [:timeline/loading-more? room-id])]
+    (fn [events room-id]
+      (let [event-array (to-array events)
+            cnt         (count event-array)
+            first-id    (some-> (aget event-array 0) :id)
+            loading?    @(re-frame/subscribe [:timeline/loading-more? room-id])]
 
-      (when (and (nil? @!initial-idx) (pos? cnt))
-        (reset! !initial-idx (dec (+ @!start-index cnt))))
+        (when (and (nil? @!initial-idx) (pos? cnt))
+          (reset! !initial-idx (dec (+ @!start-index cnt))))
 
-      (when (and @!prev-first-id (not= first-id @!prev-first-id) (> cnt @!prev-count))
-        (swap! !start-index - (- cnt @!prev-count)))
+        (when (and @!prev-first-id (not= first-id @!prev-first-id) (> cnt @!prev-count))
+          (swap! !start-index - (- cnt @!prev-count)))
 
-      (reset! !prev-first-id first-id)
-      (reset! !prev-count cnt)
+        (reset! !prev-first-id first-id)
+        (reset! !prev-count cnt)
 
-      [:div.timeline-messages
-       (when loading?
-         [:div.timeline-loading-overlay
-          [:div.spinner]])
+        [:div.timeline-messages
+         (when loading?
+           [:div.timeline-loading-overlay
+            [:div.spinner]])
 
-       (when-not @!at-bottom?
-         [:button.jump-to-bottom
-          {:on-click #(.scrollToIndex @!virtuoso-ref #js {:index (dec (+ @!start-index cnt))
-                                                          :behavior "smooth"})}
-          "Jump to Present"])
+         (when-not @!at-bottom?
+           [:button.jump-to-bottom
+            {:on-click #(.scrollToIndex @!virtuoso-ref #js {:index (dec (+ @!start-index cnt))
+                                                            :behavior "smooth"})}
+            "Jump to Present"])
 
-       [:> Virtuoso
-        {:key room-id
-         :ref #(reset! !virtuoso-ref %)
-         :data event-array
-         :firstItemIndex @!start-index
-         :initialTopMostItemIndex @!initial-idx
-         :alignToBottom true
-         :increaseViewportBy 400
-         :atBottomThreshold 100
-         :atBottomStateChange #(reset! !at-bottom? %)
-         :followOutput (fn [at-bottom] (if at-bottom "auto" false))
-         :isScrolling (fn [scrolling?]
-                        (when scrolling?
-                          ))
-         :startReached (fn []
-                         (log/debug "Start reached for" room-id)
-                         (re-frame/dispatch [:sdk/back-paginate room-id]))
-         :computeItemKey (fn [_ item] (:id item))
-         :itemContent (fn [_ item]
-                        (r/as-element
-                         [:li.timeline-item {:key (:id item)}
-                          [event-tile item]]))}] ])))
+         [:> Virtuoso
+          {:key room-id
+           :ref #(reset! !virtuoso-ref %)
+           :data event-array
+           :firstItemIndex @!start-index
+           :initialTopMostItemIndex @!initial-idx
+           :alignToBottom true
+           :increaseViewportBy 400
+           :atBottomThreshold 100
+           :atBottomStateChange #(reset! !at-bottom? %)
+           :followOutput (fn [at-bottom] (if at-bottom "auto" false))
+           :startReached (fn []
+                           (log/debug "Start reached for" room-id)
+                           (re-frame/dispatch [:sdk/back-paginate room-id]))
+           :computeItemKey (fn [_ item] (:id item))
+           :itemContent (fn [_ item]
+                          (r/as-element
+                           [:li.timeline-item {:key (:id item)}
+                            [event-tile item]]))}] ]))))
 
 (defn timeline [& {:keys [compact? hide-header?]}]
   (let [active-id    @(re-frame/subscribe [:rooms/active-id])
@@ -232,4 +393,7 @@
        [:div.timeline-empty "Select a room to start chatting."]
        [:<>
         [virtualized-timeline events active-id]
-        [message-input]])]))
+        [message-input]
+        [status-indicator active-id]
+        ])]))
+
