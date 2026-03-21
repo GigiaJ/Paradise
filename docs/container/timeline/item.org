@@ -17,6 +17,7 @@ It is convenient to define the actual items that make up a timeline.
             [re-frame.db :as db]
             ["react-virtuoso" :refer [Virtuoso]]
             [reagent.core :as r]
+            [reagent.dom :as rd]
             [reagent.dom.client :as rdom]
             [utils.helpers :refer [mxc->url sanitize-custom-html format-divider-date format-time linkify-text]]
             [utils.global-ui :refer [avatar long-press-props swipe-to-action-wrapper]]
