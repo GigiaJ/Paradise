@@ -323,6 +323,30 @@ to alert other users they read the message.
  (fn [db [_ room-id event-id]]
    (assoc-in db [:read-receipts :sent room-id] event-id)))
 
+(defonce receipt-flusher
+  (js/setInterval #(re-frame/dispatch [:msg/flush-receipts]) 2000))
+#+end_src
+
+
+We want to make sure we observe just the messages in the viewport to deliver
+read receipts. This prevents any sort of spamming to the home server.
+#+begin_src clojurescript :tangle ../../../src/container/timeline/item.cljs
+(defonce visibility-observer
+  (delay
+    (js/IntersectionObserver.
+     (fn [entries]
+       (doseq [entry entries]
+         (when (.-isIntersecting entry)
+           (let [event-id (.getAttribute (.-target entry) "data-event-id")]
+             (when event-id
+               (re-frame/dispatch [:msg/mark-visible event-id]))))))
+     #js {:threshold 0.5})))
+#+end_src
+
+
+
+**** Ho wver and Context Menus for Items
+
 
 #+begin_src clojurescript :tangle ../../../src/container/timeline/item.cljs
 (defn build-message-actions [item active-room current-user-id x y]
