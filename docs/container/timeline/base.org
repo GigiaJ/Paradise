@@ -685,12 +685,6 @@ I will segment these another time
     object-fit: contain;
 }
 
-.timeline-input-outer {
-    flex: 0 0 auto;
-    padding: 10px 16px 24px 16px;
-    background-color: #313338;
-    z-index: 10;
-}
 
 .timeline-input-wrapper {
     background-color: #383a40;
