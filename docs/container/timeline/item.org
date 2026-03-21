@@ -590,10 +590,11 @@ individual's display name.
                 reply-id  (:event-id in-reply-to)
                 reply-msg (when reply-id @(re-frame/subscribe [:timeline/event-by-id active-room reply-id]))]
             [:<>
-             [:div.timeline-header
-              [profile-popover-trigger popover-member custom-tags active-room
-               [:span.timeline-sender-name sender-name]]
-              [:span.timeline-timestamp (format-time ts)]]
+             (when-not merge-with-prev?
+               [:div.timeline-header
+                [profile-popover-trigger popover-member custom-tags active-room
+                 [:span.timeline-sender-name sender-name]]
+                [:span.timeline-timestamp (format-time ts)]])
              [:div.timeline-body
               (cond
                 is-editing-this? [inline-editor item active-room]
