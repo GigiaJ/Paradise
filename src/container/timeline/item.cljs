@@ -6,6 +6,7 @@
             [re-frame.db :as db]
             ["react-virtuoso" :refer [Virtuoso]]
             [reagent.core :as r]
+            [reagent.dom :as rd]
             [reagent.dom.client :as rdom]
             [utils.helpers :refer [mxc->url sanitize-custom-html format-divider-date format-time linkify-text]]
             [utils.global-ui :refer [avatar long-press-props swipe-to-action-wrapper]]
@@ -13,11 +14,12 @@
             [container.members :refer [profile-popover-trigger]]
             [input.base :refer [message-input inline-editor]]
             [navigation.rooms.room-summary :refer [build-room-summary]]
+            [utils.svg :as icons]
             [client.diff-handler :refer [apply-matrix-diffs]]
-            ["generated-compat" :as sdk :refer [RoomMessageEventContentWithoutRelation MessageType EditedContent]]
+            ["generated-compat" :as sdk :refer [RoomMessageEventContentWithoutRelation MessageType EditedContent ReceiptType]]
             ))
 
-(defn reify-item [ffi-item]
+(defn wrap-item [ffi-item]
   (let [raw-id (.uniqueId ffi-item)
         id-str (if raw-id (or (.-id raw-id) raw-id) (str "virt-" (hash ffi-item)))
         event (.asEvent ffi-item)
@@ -49,13 +51,9 @@
                                       [emoji (count senders)]))
                                   (js->clj reactions-raw)))
 
-                _ (js/console.log event)
-            ;;            _ (js/console.log reactions)
-;;            _ (log/debug reactions)
-;;            _ (js/console.log content-inner)
-                read-by (try
-                          (mapv #(.-sender %) (.readReceipts ffi-item))
-                          (catch :default _ []))]
+                read-by (let [receipts (.-readReceipts event)]
+                          (if (and receipts (> (.-size receipts) 0))
+                            (vec (js/Array.from (.keys receipts)))))]
 
             {:id                      real-id
              :internal-id             id-str
@@ -168,7 +166,7 @@
  :msg/delete
  (fn [{:keys [db]} [_ room-id msg-id]]
    (if-let [timeline (get-in db [:timeline-subs room-id :timeline])]
-     (-> (.redactEvent timeline msg-id nil nil)
+     (-> (.redactEvent timeline msg-id)
          (.then #(log/debug "Message deleted optimistically:" msg-id))
          (.catch #(log/error "Failed to redact message:" %)))
      (log/error "No timeline found in db for room:" room-id))
@@ -227,28 +225,80 @@
            (log/error "FFI Edit Panic:" e))))
      {})))
 
+(re-frame/reg-event-fx
+ :room/mark-read
+ (fn [{:keys [db]} [_ room-id event-id]]
+   (let [client (:client db)
+         room (.getRoom client room-id)]
+     (when (and room event-id)
+       (log/error room)
+       (-> (.sendReadReceipt room event-id "m.read")
+           (p/catch #(log/error "Failed to send receipt" %))))
+     {})))
+
+(re-frame/reg-event-db
+ :msg/mark-visible
+ (fn [db [_ event-id]]
+   (if-let [room-id (:active-room-id db)]
+     (assoc-in db [:read-receipts :pending room-id] event-id)
+     db)))
+
+(re-frame/reg-event-fx
+ :msg/flush-receipts
+ (fn [{:keys [db]} _]
+   (let [pending (get-in db [:read-receipts :pending])
+         client  (:client db)]
+     (when (and client (seq pending))
+       (doseq [[room-id event-id] pending]
+         (when (not= (get-in db [:read-receipts :sent room-id]) event-id)
+           (if-let [timeline (get-in db [:timeline-subs room-id :timeline])]
+             (-> (.sendReadReceipt timeline (.-Read ReceiptType) event-id )
+                 (.then #(re-frame/dispatch [:msg/receipt-sent room-id event-id]))
+                 (.catch #(log/error "Receipt fail:" %)))
+             (log/error "No timeline for receipt:" room-id)))))
+     {:db (assoc-in db [:read-receipts :pending] {})})))
+
+(re-frame/reg-event-db
+ :msg/receipt-sent
+ (fn [db [_ room-id event-id]]
+   (assoc-in db [:read-receipts :sent room-id] event-id)))
+
+(defonce receipt-flusher
+  (js/setInterval #(re-frame/dispatch [:msg/flush-receipts]) 2000))
+
+(defonce visibility-observer
+  (delay
+    (js/IntersectionObserver.
+     (fn [entries]
+       (doseq [entry entries]
+         (when (.-isIntersecting entry)
+           (let [event-id (.getAttribute (.-target entry) "data-event-id")]
+             (when event-id
+               (re-frame/dispatch [:msg/mark-visible event-id]))))))
+     #js {:threshold 0.5})))
+
 (defn build-message-actions [item active-room current-user-id x y]
-  (let [
-        ;;_ (log/debug item)
-        ;;_ (log/debug current-user-id)
-        msg-id   (:id item)]
+  (let [msg-id   (:id item)
+        is-mine? (or (:is-own? item)
+                     (= (:sender item) current-user-id))]
     (cond-> [{:id "react"
               :label "Add Reaction"
-              :icon "😀"
+              :icon [icons/smiley]
               :action #(re-frame/dispatch [:msg/open-reaction-picker active-room msg-id x y])}
 
-             {:id "reply" :label "Reply" :icon "↩️"
+             {:id "reply" :label "Reply" :icon [icons/reply]
               :action #(re-frame/dispatch [:input/set-context active-room :reply item])}
 
              (when (:is-own? item)
-               {:id "edit" :label "Edit Message" :icon "✏️"
+               {:id "edit" :label "Edit Message" :icon [icons/edit]
                 :action #(re-frame/dispatch [:input/set-context active-room :edit item])})
-             {:id "thread" :label "Start Thread"  :icon "🧵" :action #(re-frame/dispatch [:msg/thread active-room msg-id])}
-             {:id "copy"   :label "Copy Text"     :icon "📋" :action #(js/navigator.clipboard.writeText (or (get-in item [:content :body]) ""))}
-             {:id "link"   :label "Copy Link"     :icon "🔗" :action #(js/console.log "Copy permalink for" msg-id)}
-             {:id "pin"    :label "Pin Message"   :icon "📌" :action #(re-frame/dispatch [:msg/pin active-room msg-id])}
-             {:id "source" :label "View Event"    :icon "🔍" :action #(re-frame/dispatch [:msg/view-source msg-id])}]
-      is-mine? (conj {:id "delete" :label "Delete"       :icon "🗑️" :class-name "danger" :action #(re-frame/dispatch [:msg/delete active-room msg-id])}))))
+             {:id "thread" :label "Start Thread"  :icon [icons/thread] :action #(re-frame/dispatch [:msg/thread active-room msg-id])}
+             {:id "copy"   :label "Copy Text"     :icon [icons/copy] :action #(js/navigator.clipboard.writeText (or (get-in item [:content :body]) ""))}
+             {:id "link"   :label "Copy Link"     :icon [icons/link] :action #(log/info "Copy permalink for" msg-id)}
+             {:id "pin"    :label "Pin Message"   :icon [icons/pins] :action #(re-frame/dispatch [:msg/pin active-room msg-id])}
+             {:id "source" :label "View Event"    :icon [icons/search] :action #(re-frame/dispatch [:msg/view-source msg-id])}]
+      is-mine? (conj {:id "/
+                delete" :label "Delete"       :icon [icons/trash] :class-name "danger" :action #(re-frame/dispatch [:msg/delete active-room (:event-or-transaction-id item)])}))))
 
 (defn message-hover-toolbar [item active-room current-user-id]
   (let [msg-id   (:id item)]
@@ -260,14 +310,19 @@
               (.stopPropagation e)
               (let [mouse-x (.-clientX e)
                     mouse-y (.-clientY e)]
-                (re-frame/dispatch [:msg/open-reaction-picker active-room msg-id mouse-x mouse-y])))} "😀"]
+                (re-frame/dispatch [:msg/open-reaction-picker active-room msg-id mouse-x mouse-y])))}
+      [icons/smiley]]
      [:div.toolbar-btn
       {:title "Reply"
-       :on-click #(re-frame/dispatch [:input/set-context active-room :reply item])} "↩️"]
+       :on-click #(re-frame/dispatch [:input/set-context active-room :reply item])}
+      [icons/reply]
+      ]
      (when (:is-own? item)
        [:div.toolbar-btn
         {:title "Edit"
-         :on-click #(re-frame/dispatch [:input/set-context active-room :edit item])} "✏️"])
+         :on-click #(re-frame/dispatch [:input/set-context active-room :edit item])}
+        [icons/edit]
+        ])
      [:div.toolbar-btn
       {:title "More"
        :on-click (fn [e]
@@ -279,7 +334,7 @@
                        {:x mx
                         :y my
                         :items (build-message-actions item active-room current-user-id mx my)}])))}
-      "•••"]
+      [icons/more]]
      ]))
 
 (defn message-text [{:keys [body html]}]
@@ -379,8 +434,8 @@
    [:span.separator-text (format-divider-date ts)]
    [:div.separator-line]])
 
-(defn event-tile [item]
-  (let [{:keys [id sender sender-name sender-avatar content-tag content type reactions read-by ts is-own?]} item
+(defn event-tile-render [item]
+  (let [{:keys [id sender sender-name sender-avatar content-tag content type reactions read-by ts is-own? merge-with-prev?]} item
         active-room @(re-frame/subscribe [:rooms/active-id])
         my-profile  @(re-frame/subscribe [:sdk/profile])
         my-id       (:user-id my-profile)
@@ -407,9 +462,10 @@
        {:can-edit? is-own?
         :on-action (fn [action] (re-frame/dispatch [:input/set-context active-room action item]))
         :wrapper-props (merge (long-press-props open-menu-fn)
-                              {:class "timeline-message"})}
+                      {:class (str "timeline-message"
+                                   (when merge-with-prev? " is-merged"))})}
        [:div.timeline-avatar-wrapper
-        (when (= content-tag "MsgLike")
+        (when (and (= content-tag "MsgLike") (not merge-with-prev?))
           [profile-popover-trigger popover-member custom-tags active-room
            [avatar {:id sender :name sender-name
                     :url (mxc->url sender-avatar)
@@ -425,10 +481,11 @@
                 reply-id  (:event-id in-reply-to)
                 reply-msg (when reply-id @(re-frame/subscribe [:timeline/event-by-id active-room reply-id]))]
             [:<>
-             [:div.timeline-header
-              [profile-popover-trigger popover-member custom-tags active-room
-               [:span.timeline-sender-name sender-name]]
-              [:span.timeline-timestamp (format-time ts)]]
+             (when-not merge-with-prev?
+               [:div.timeline-header
+                [profile-popover-trigger popover-member custom-tags active-room
+                 [:span.timeline-sender-name sender-name]]
+                [:span.timeline-timestamp (format-time ts)]])
              [:div.timeline-body
               (cond
                 is-editing-this? [inline-editor item active-room]
@@ -460,6 +517,30 @@
                    [:img.reaction-custom {:src (mxc->url emoji {:width 32 :height 32 :method "crop"})}]
                    [:span.reaction-emoji emoji])
                  [:span.reaction-count count]])])
-           (when (seq read-by)
+           #_(when (seq read-by)
              [:div.read-receipts-row
               [:span.receipt-count (str "✓ " (count read-by))]])])]])))
+
+
+(defn event-tile [item]
+  (r/with-let [node-ref (r/atom nil)
+               observe-node (fn [node]
+                              (when (and node (not= (:type item) :virtual))
+                                (.observe @visibility-observer node)))
+               unobserve-node (fn [node]
+                                (when (and node (not= (:type item) :virtual))
+                                  (.unobserve @visibility-observer node)))]
+    (let [rendered-item [event-tile-render item]
+          ]
+      [:div {:ref (fn [el]
+                    (when el
+                      (reset! node-ref el)
+                      (observe-node el)))
+             :data-event-id (:id item)
+             }
+       rendered-item])
+    (finally
+      (when-let [node @node-ref]
+        (unobserve-node node)))))
+;;
+;;
