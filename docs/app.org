@@ -495,6 +495,12 @@ providing the encapsulation and parsing for us.
       (:logged-out :authenticating) [login-screen]
       :logged-in
       [:<>
+       (when update-ready?
+         [:div.global-update-banner
+          [:span "A new version of the app is available!"]
+          [:button {:on-click #(re-frame/dispatch [:app/apply-update])}
+           "Refresh"]])
+
        [persistent-call-container]
        [:div.app-root {:class (when sidebar-open? "sidebars-open")}
         [spaces-sidebar]
