@@ -469,7 +469,7 @@ is reached. This should probably also have a somewhat automatic trigger until
 size is reached, but the behavior may be impacted by the performant issue
 mentioned above. Should be easily sorted, however.
 #+begin_src clojurescript :tangle ../../../src/container/timeline/base.cljs
-(defn virtualized-timeline [events room-id]
+(defn virtualized-timeline [initial-events initial-room-id]
   (r/with-let [!start-index    (r/atom 1000000)
                !prev-first-id  (r/atom nil)
                !prev-count     (r/atom 0)
