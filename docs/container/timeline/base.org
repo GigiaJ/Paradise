@@ -801,6 +801,20 @@ I will segment these another time
 }
 
 
+.timeline-body p {
+    margin-block-start: 0;
+    margin-block-end: 0;
+    margin-inline-start: 0;
+    margin-inline-end: 0;
+    display: block;
+    line-height: 1.5;
+}
+
+.timeline-body p + p {
+    margin-top: 8px;
+}
+
+
 .timeline-container {
     display: flex;
     flex-direction: column;
