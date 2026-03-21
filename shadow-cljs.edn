@@ -2,8 +2,7 @@
  :builds
  {:app {:target :esm
         :npm-deps false
-        :build-hooks [
-                      ;;[build-hooks/generate-lang-map]
+        :build-hooks [;;[build-hooks/generate-lang-map]
                       [build-hooks/include-root-files]
                       [build-hooks/include-themes]
                       [build-hooks/include-css]
@@ -32,4 +31,6 @@
                     :undeclared-var false
                     :infer-warning false}}
         :devtools {:after-load client.core/after-load
-                   :watch-dir "docs"}}}}
+                   :watch-dir "docs"
+                   ;;:devtools-url "."
+                   }}}}
