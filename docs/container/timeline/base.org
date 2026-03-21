@@ -270,6 +270,21 @@ is an edit)
            [(conj acc (assoc curr-event :merge-with-prev? merge?)) curr-event]))
        [[] nil]
        sorted-events)))))
+
+
+
+(re-frame/reg-sub
+ :timeline/latest-readers
+ (fn [_ _]
+   [(re-frame/subscribe [:timeline/current-events])
+    (re-frame/subscribe [:sdk/profile])])
+ (fn [[events profile] _]
+   (let [my-id        (:user-id profile)
+         actual-events (filter #(= (:type %) :event) events)
+         latest-event  (last actual-events)
+         read-by       (or (:read-by latest-event) [])
+         others        (remove #(= % my-id) read-by)]
+     others)))
 #+end_src
 
 
