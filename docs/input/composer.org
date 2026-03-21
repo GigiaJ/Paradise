@@ -222,11 +222,19 @@ so we stick with what the complex component expects.
         on-change    (.. props -children -onChange)
         loaded-text  (.. props -children -loadedText)
         on-ready     (.. props -children -onEditorReady)
+        latest-cbs   (react/useRef #js {:onSend on-send :onFiles on-files})
+        _            (set! (.-current latest-cbs) #js {:onSend on-send :onFiles on-files})
         editor (useEditor
                 #js {:extensions #js [(.configure StarterKit #js {})
                                       (.configure Placeholder #js {:placeholder "Type a message..."})
-                                      (.configure submit-extension #js {:onSend on-send})
-                                      (.configure file-drop-extension #js {:onFiles on-files})
+                                      (.configure submit-extension
+                                      #js {:onSend (fn [text html]
+                                                     (let [cb (.-onSend (.-current latest-cbs))]
+                                                       (when cb (cb text html))))})
+                                      (.configure file-drop-extension
+                                      #js {:onFiles (fn [files]
+                                                      (let [cb (.-onFiles (.-current latest-cbs))]
+                                                        (when cb (cb files))))})
                                       (.configure custom-emote #js {})
                                       (.configure Mention #js {:name "emojiSuggestion"
                                                                :suggestion (emoji-suggestion-options)})
@@ -245,15 +253,19 @@ so we stick with what the complex component expects.
                                  (when on-ready
                                    (on-ready (.-editor ctx))))
                      :editorProps #js {:attributes #js {:class "tiptap-editor-surface"}}}
-                #js [active-id (boolean loaded-text)])]
+                #js [active-id])]
+
+
+
     (if-not editor
       (react/createElement "div" #js {:className "timeline-input-wrapper"}
                            (react/createElement "div" #js {:className "tiptap-editor-surface"}))
+
       (react/createElement "div"
-                           #js {:key (str "editor-" active-id "-" (when (seq loaded-text) "ready"))
+                           #js {:key (str "editor-surface-" active-id)
                                 :className "timeline-input-wrapper"
                                 :onClick (fn [] (.commands.focus editor))}
-                           (react/createElement EditorContent #js {:editor editor})))))
+  (react/createElement EditorContent #js {:editor editor})))))
 #+end_src
 
 ***** CSS
