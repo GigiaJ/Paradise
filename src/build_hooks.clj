@@ -74,7 +74,7 @@
   {:shadow.build/stage :flush}
   [build-state & args]
   (let [resource-dir "build/"
-        root-files   ["index.html"]]
+        root-files   ["index.html" "config.edn"]]
     (doseq [f root-files
             :let [source (io/file f)
                   target (io/file resource-dir f)]]
