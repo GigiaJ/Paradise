@@ -194,7 +194,7 @@ help anyone later who wants to make changes to aspects of the timeline.
  :msg/delete
  (fn [{:keys [db]} [_ room-id msg-id]]
    (if-let [timeline (get-in db [:timeline-subs room-id :timeline])]
-     (-> (.redactEvent timeline msg-id nil nil)
+     (-> (.redactEvent timeline msg-id)
          (.then #(log/debug "Message deleted optimistically:" msg-id))
          (.catch #(log/error "Failed to redact message:" %)))
      (log/error "No timeline found in db for room:" room-id))
