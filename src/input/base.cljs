@@ -8,7 +8,7 @@
             [input.emotes :refer [emoji-sticker-board]]
             [input.autocomplete :refer [suggestion-menu]]
             [reagent.core :as r]
-            [utils.helpers :refer [mxc->url]]
+            [utils.helpers :refer [mxc->url truncate-name]]
             [utils.svg :as icons]
             ["generated-compat" :as sdk :refer [MessageType MessageFormat MediaSource UploadSource UploadParameters]]
             ))
@@ -277,7 +277,8 @@
             attachments @(re-frame/subscribe [:composer/attachments active-id])
             loaded-text @(re-frame/subscribe [:composer/loaded-text active-id])
             context     @(re-frame/subscribe [:input/context active-id])
-            _ (log/debug context)]
+            ]
+
         [:div.timeline-input-outer
          [suggestion-menu
           (fn [item]
@@ -303,9 +304,9 @@
          (when (and context (= (:mode context) :reply))
            [:div.input-context-banner
             [:div.context-info
-             [:span (str "Replying to " (-> context :target :sender-name))]]
+             [:span (str "Replying to " (truncate-name (-> context :target :sender-name) 32))]]
             [:button.context-cancel-btn
-             {:on-click #(re-frame/dispatch [:input/clear-context active-id])} "✖"]])
+             {:on-click #(re-frame/dispatch [:input/clear-context active-id])} [icons/exit]]])
 
          [:div.timeline-input-wrapper
           (when (seq attachments)
@@ -317,10 +318,12 @@
                            attachments))])
 
           (when uploading?
+            ^{:key "upload-indicator"}
             [:div.upload-indicator
              [:span.upload-text "Uploading file..."]
              [:div.upload-progress-bar [:div.upload-progress-fill]]])
 
+          ^{:key "composer-input-row"}
           [:div.timeline-input-row
            [:label.timeline-upload-btn
             {:title "Upload a file"}
@@ -337,12 +340,21 @@
            [:div.timeline-editor-container
             [:> tiptap-component
              #js {:activeId active-id
+                  :key (str "editor-" active-id)
                   :loadedText loaded-text
                   :onChange (fn [text html]
                               (re-frame/dispatch [:composer/on-change active-id text html]))
                   :onSend (fn [text html]
-                            (let [matrix-html (get-matrix-formatted-body @!editor)]
-                              (re-frame/dispatch [:composer/submit active-id text matrix-html])))
+                            (let [matrix-html (get-matrix-formatted-body @!editor)
+                                  can-send? (or (not (str/blank? text))
+                                                (str/includes? matrix-html "<img")
+                                                (seq attachments))]
+                              (if can-send?
+                                (do
+                                  (re-frame/dispatch [:composer/submit active-id text matrix-html])
+                                  true)
+                                false)))
+
                   :onFiles (fn [files]
                              (let [file-array (js/Array.from files)]
                                (re-frame/dispatch [:sdk/handle-file-drop active-id file-array])))
