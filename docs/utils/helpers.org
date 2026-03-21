@@ -219,7 +219,7 @@ Just use Reagent.
 #+end_src
 
 
-**** Date / Time formatting
+**** Formatting (Date / Time / Text)
 
 We need to be able to convert timestamps to date otherwise people might not be too fond of reading them. Haha.
 
