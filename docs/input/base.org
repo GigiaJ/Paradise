@@ -442,10 +442,12 @@ Ideally, we should break this apart more later.
                            attachments))])
 
           (when uploading?
+            ^{:key "upload-indicator"}
             [:div.upload-indicator
              [:span.upload-text "Uploading file..."]
              [:div.upload-progress-bar [:div.upload-progress-fill]]])
 
+          ^{:key "composer-input-row"}
           [:div.timeline-input-row
            [:label.timeline-upload-btn
             {:title "Upload a file"}
@@ -462,6 +464,7 @@ Ideally, we should break this apart more later.
            [:div.timeline-editor-container
             [:> tiptap-component
              #js {:activeId active-id
+                  :key (str "editor-" active-id)
                   :loadedText loaded-text
                   :onChange (fn [text html]
                               (re-frame/dispatch [:composer/on-change active-id text html]))
