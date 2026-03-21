@@ -4,6 +4,7 @@
    [re-frame.core :as re-frame]
    [re-frame.db :as db]
    [reagent.core :as r]
+   [utils.svg :as icons]
 ;;   [input.emotes :refer [emoji-sticker-board]]
    ))
 
@@ -251,9 +252,9 @@
                  :color (if (= action :edit) "var(--brand-experiment, #5865f2)" "var(--text-muted, #888)")
                  :font-weight "bold" :font-size "0.85rem" :z-index 0}}
         (cond
-          (= action :edit)  [:span "✏️ Edit"]
-          (= action :reply) [:span "Reply ↩️"]
-          :else             [:span "↩️"])]
+          (= action :edit)  [:span [icons/edit] " Edit"]
+          (= action :reply) [:span "Reply " [icons/reply]]
+          :else             [:span [icons/reply]])]
 
        [:div.swipe-foreground
         (merge wrapper-props
