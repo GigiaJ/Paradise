@@ -308,6 +308,8 @@ Simple verification tab for now
 #+end_src
 
 
+***** Settings Sidebar Component
+
 Inside the modal this is our sidebar options.
 
 #+begin_src clojurescript :tangle ../../src/overlays/settings.cljs
