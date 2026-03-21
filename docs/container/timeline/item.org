@@ -25,8 +25,9 @@ It is convenient to define the actual items that make up a timeline.
             [container.members :refer [profile-popover-trigger]]
             [input.base :refer [message-input inline-editor]]
             [navigation.rooms.room-summary :refer [build-room-summary]]
+            [utils.svg :as icons]
             [client.diff-handler :refer [apply-matrix-diffs]]
-            ["generated-compat" :as sdk :refer [RoomMessageEventContentWithoutRelation MessageType EditedContent]]
+            ["generated-compat" :as sdk :refer [RoomMessageEventContentWithoutRelation MessageType EditedContent ReceiptType]]
             ))
 #+end_src
 
