@@ -74,15 +74,9 @@ help anyone later who wants to make changes to aspects of the timeline.
                                       [emoji (count senders)]))
                                   (js->clj reactions-raw)))
 
-
-
-                _ (js/console.log event)
-            ;;            _ (js/console.log reactions)
-;;            _ (log/debug reactions)
-;;            _ (js/console.log content-inner)
-                read-by (try
-                          (mapv #(.-sender %) (.readReceipts ffi-item))
-                          (catch :default _ []))]
+                read-by (let [receipts (.-readReceipts event)]
+                          (if (and receipts (> (.-size receipts) 0))
+                            (vec (js/Array.from (.keys receipts)))))]
 
             {:id                      real-id
              :internal-id             id-str
