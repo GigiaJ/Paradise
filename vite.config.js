@@ -16,9 +16,14 @@ const copyFiles = {
             dest: 'generated-compat'
         },
         {
+            src: 'config.edn',
+            dest: '.'
+        },
+        {
             src: 'css/*',
             dest: 'css'
         }
+
     ]
 }
 
