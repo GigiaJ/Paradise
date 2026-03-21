@@ -37,7 +37,7 @@
                  #(mxc->url %))
     ""))
 
-(defn- get-matrix-formatted-body [editor]
+(defn get-matrix-formatted-body [editor]
   (let [json (.. editor getJSON -content)
         node->html (fn node->html [node]
                      (let [type  (.-type node)
@@ -126,28 +126,29 @@
                                                         (if (and files (pos? (.-length files)))
                                                           (do
                                                             (.preventDefault event)
+                                                            (.focus view)
                                                             (when-let [on-files (.. this -options -onFiles)]
                                                               (on-files files))
                                                             true)
                                                           false)))}}})]))}))
 
+
 (def submit-extension
   (.create Extension
-    #js {:name "submitExtension"
-         :addOptions (fn [] #js {:onSend nil})
-         :addKeyboardShortcuts
-         (fn []
-           (this-as this
-             #js {"Enter" (fn [context]
-                            (let [editor (.-editor context)
-                                  text (.getText editor)
-                                  html (.getHTML editor)
-                                  on-send (.. this -options -onSend)]
-                              (when (and on-send (not (str/blank? text)))
-                                (on-send text html)
-                                (.commands.clearContent editor true))
-                              true))
-                  "Shift-Enter" (fn [] false)}))}))
+           #js {:name "submitExtension"
+                :addOptions (fn [] #js {:onSend nil})
+                :addKeyboardShortcuts
+                (fn []
+                  (this-as this
+                           #js {"Enter" (fn [context]
+                                          (let [editor  (.-editor context)
+                                                text    (.getText editor)
+                                                html    (.getHTML editor)
+                                                on-send (.. this -options -onSend)]
+                                            (when (and on-send (on-send text html))
+                                              (.commands.clearContent editor true))
+                                            true))
+                                "Shift-Enter" (fn [] false)}))}))
 
 (defn tiptap-component [^js props]
   (let [active-id    (.. props -children -activeId)
@@ -156,11 +157,19 @@
         on-change    (.. props -children -onChange)
         loaded-text  (.. props -children -loadedText)
         on-ready     (.. props -children -onEditorReady)
+        latest-cbs   (react/useRef #js {:onSend on-send :onFiles on-files})
+        _            (set! (.-current latest-cbs) #js {:onSend on-send :onFiles on-files})
         editor (useEditor
                 #js {:extensions #js [(.configure StarterKit #js {})
                                       (.configure Placeholder #js {:placeholder "Type a message..."})
-                                      (.configure submit-extension #js {:onSend on-send})
-                                      (.configure file-drop-extension #js {:onFiles on-files})
+                                      (.configure submit-extension
+                                      #js {:onSend (fn [text html]
+                                                     (let [cb (.-onSend (.-current latest-cbs))]
+                                                       (when cb (cb text html))))})
+                                      (.configure file-drop-extension
+                                      #js {:onFiles (fn [files]
+                                                      (let [cb (.-onFiles (.-current latest-cbs))]
+                                                        (when cb (cb files))))})
                                       (.configure custom-emote #js {})
                                       (.configure Mention #js {:name "emojiSuggestion"
                                                                :suggestion (emoji-suggestion-options)})
@@ -179,12 +188,16 @@
                                  (when on-ready
                                    (on-ready (.-editor ctx))))
                      :editorProps #js {:attributes #js {:class "tiptap-editor-surface"}}}
-                #js [active-id (boolean loaded-text)])]
+                #js [active-id])]
+
+
+
     (if-not editor
       (react/createElement "div" #js {:className "timeline-input-wrapper"}
                            (react/createElement "div" #js {:className "tiptap-editor-surface"}))
+
       (react/createElement "div"
-                           #js {:key (str "editor-" active-id "-" (when (seq loaded-text) "ready"))
+                           #js {:key (str "editor-surface-" active-id)
                                 :className "timeline-input-wrapper"
                                 :onClick (fn [] (.commands.focus editor))}
-                           (react/createElement EditorContent #js {:editor editor})))))
+  (react/createElement EditorContent #js {:editor editor})))))
