@@ -341,6 +341,7 @@ Inside the modal this is our sidebar options.
 
 #+end_src
 
+
 **** Current Account tab
 
 
@@ -604,6 +605,78 @@ This needs to be organized a bit better (and documented better).
 #+end_src
 
 
+**** About Tab
+
+
+***** CSS
+
+#+begin_src css :tangle ../../css/settings.css
+.about-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.about-header h3 {
+    margin: 0;
+}
+
+.version-badge {
+    background: var(--accent-color, #4a90e2);
+    color: white;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 0.85em;
+    font-weight: 500;
+}
+
+.settings-spacer {
+    height: 24px;
+}
+
+.form-button {
+    cursor: pointer;
+    padding: 8px 16px;
+    border: none;
+    border-radius: 4px;
+    background-color: var(--button-bg, #eeeeee);
+    transition: background-color 0.2s;
+}
+
+.form-button:hover {
+    filter: brightness(0.9);
+}
+
+
+#+end_src
+
+
+***** Component
+
+#+begin_src clojurescript :tangle ../../src/overlays/settings.cljs
+(defn about-tab []
+  (let [version  @(re-frame/subscribe [:app/version])
+        app-name (:app-name config "Matrix Client")]
+    [:div.settings-tab-content
+     [:h2.settings-heading "About"]
+     [:div.settings-section
+      [:div.about-header
+       [:h3 app-name]
+       [:div.version-badge (str "v" version)]]
+      [:p.verification-description
+       "A lightweight, modern Matrix client built with ClojureScript and Re-frame utilizing the Rust-SDK through WASM. Somewhat documented using org-mode."]
+      [:div.settings-spacer]
+      [:h3.settings-subheading "Updates"]
+      [:p.verification-description
+       "The app automatically checks for updates in the background, but you can also check manually."]
+
+      [:button.form-button
+       {:on-click #(re-frame/dispatch [:app/poll-version true])}
+       "Check for Updates"]]]))
+#+end_src
+
+
 **** Settings Modal component
 
 
@@ -626,8 +699,9 @@ This needs to be organized a bit better (and documented better).
          (case active-tab
            :my-account    [my-account-tab profile]
            :verification  [verification-tab]
-           :accounts [accounts-tab]
+           :accounts      [accounts-tab]
            :notifications [notifications-tab]
+           :about         [about-tab]
            [:div {:style {:color "#fff"}} "Tab not found"])]]])))
 
 #+end_src
