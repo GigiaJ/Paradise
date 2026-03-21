@@ -677,7 +677,7 @@ We definitely want some color though.
        (when-not (str/blank? query)
          [:button.member-search-clear-btn
           {:on-click #(re-frame/dispatch [:room/set-member-filter active-room ""])}
-          "✕"])]
+          [icons/exit]])]
 
       [:div.member-dropdown-row
        [:select.member-dropdown
