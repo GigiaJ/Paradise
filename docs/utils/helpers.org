@@ -249,6 +249,42 @@ We need to be able to convert timestamps to date otherwise people might not be t
 #+end_src
 
 
+***** Names
+
+
+
+#+begin_src clojurescript :tangle ../../src/utils/helpers.cljs
+(defn truncate-name [name max-len]
+  (if (> (count name) max-len)
+    (str (subs name 0 max-len) "...")
+    name))
+#+end_src
+
+***** Readers
+
+
+#+begin_src clojurescript :tangle ../../src/utils/helpers.cljs
+(defn join-names [names]
+  (let [cnt (count names)]
+    (case cnt
+      0 ""
+      1 (first names)
+      2 (str (first names) " and " (second names))
+      3 (str (first names) ", " (second names) ", and " (first (last names)))
+      (str (first names) ", " (second names) ", and " (- cnt 2) " others"))))
+
+
+(defn format-readers [names]
+  (let [joined (join-names names)]
+    (if (empty? joined)
+      nil
+      (str joined (if (= 1 (count names))
+                    " is following the conversation"
+                    " are following")))))
+
+
+#+end_src
+
 
 **** Arbitrary Fetch Events
 
