@@ -30,7 +30,7 @@ worry about the code itself.
 (defn copy-wasm
   {:shadow.build/stage :flush}
   [build-state & args]
-  (let [source (io/file "packages/generated-compat/src/generated-compat/wasm-bindgen/index_bg.wasm")
+  (let [source (io/file "node_modules/ffi-bindings/src/generated-compat/wasm-bindgen/index_bg.wasm")
         target (io/file "build/generated-compat/wasm-bindgen/index_bg.wasm")]
     (when (.exists source)
       (io/make-parents target)
