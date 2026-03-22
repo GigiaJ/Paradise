@@ -13,7 +13,7 @@ const copyFiles = {
         },
         {
             src: path.resolve(__dirname, 'node_modules/ffi-bindings/src/generated-compat/wasm-bindgen'),
-            dest: 'generated-compat'
+            dest: 'ffi-bindings'
         },
         {
             src: 'config.edn',
@@ -108,7 +108,7 @@ export default defineConfig(({ mode }) => {
         },
         resolve: {
             alias: {
-                "generated-compat": path.resolve(__dirname, './node_modules/ffi-bindings/generated-compat/src/index.web.js'),
+                "ffi-bindings": path.resolve(__dirname, './node_modules/ffi-bindings/src/index.web.js'),
                 'react': path.resolve(__dirname, './node_modules/react'),
                 'react-dom': path.resolve(__dirname, './node_modules/react-dom'),
                 'react/jsx-runtime': path.resolve(__dirname, './node_modules/react/jsx-runtime'),
