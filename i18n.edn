@@ -1,0 +1,176 @@
+{:en
+ {:container
+  {:panels
+   {:members "Members"
+    :threads "Threads"
+    :search  "Search"
+    :pins    "Pins"}
+   :timeline
+   {:item
+    {:react "Add Reaction"
+     :reply "Reply"
+     :edit-message "Edit Message"
+     :start-thread "Start Thread"
+     :copy-text "Copy Text"
+     :copy-link "Copy Link"
+     :pin       "Pin Message"
+     :source    "View Event"
+     :delete    "Delete"
+     :more      "More"}
+    :jump-to-bottom "Jump to Bottom"
+    :status
+    {:redacted "This message was deleted."
+     :decryption-error "Unable to decrypt message."
+     :unknown-kind "Unknown message kind: %1"
+     :unknown-event "Unknown event type: %1"
+     :edited "(edited)"
+     :unsupported "Unsupported message type: %1"
+     :membership "%1 membership changed."
+     :profile "%1 changed their profile."
+     :reply-loading "Loading original message..."
+     :media-preview "Media message"
+     :timeline-separator "Timeline Separator"
+     :file-download "Download File"
+     :typing
+     {:one "%1 is typing..."
+      :two "%1 and %2 are typing..."
+      :three "%1, %2, and %3 are typing..."
+      :many "%1, %2, and %3 others are typing..."}
+     :reading
+     {:one "%1 is following the conversation"
+      :two "%1 and %2 are following"
+      :three "%1, %2, and %3 are following"
+      :many "%1, %2, and %3 others are following"}}}
+
+   :calls
+   {:main-iframe "Persistent Call Container Main Iframe"
+    :backup-iframe "Persistent Call Container Backup Iframe"}
+   :members
+   {:search-placeholder "Search members..."
+    :loading "Loading members..."
+    :no-results "No members found"
+    :filter {:joined "Joined (%1)"
+             :invited "Invited (%1)"
+             :left "Left (%1)"
+             :banned "Banned (%1)"}
+    :sort {:role "Sort: Role"
+           :name "Sort: Name"
+           :latest "Sort: Latest"}}
+   :member-actions
+   {:view-profile "View Profile"
+    :mention "Mention @%1"
+    :message "Direct Message"
+    :kick "Kick Member"}
+   :header
+   {:join-call "Join Call"
+    :start-call "Start Call"
+    :room-chat "Room Chat"
+    :search "Search"
+    :pinned-messages "Pinned Messages"
+    :member-list "Member List"
+    :more-options "More Options"}}
+  :auth
+  {:welcome "Welcome to Paradise."
+   :subtitle "Make yourself comfy."
+   :continue-as "Continue as:"
+   :divider "— or log in to another —"
+   :labels {:homeserver "Homeserver"
+            :username "Username"
+            :password "Password"}
+   :actions {:login "Login"
+             :logging-in "Logging in..."
+             :register "Register"}
+   :footer-text "Need an account? "}
+  :composer
+  {:replying-to "Replying to %1"
+   :uploading "Uploading file..."
+   :upload-tooltip "Upload a file"
+   :placeholder "Type a message..."
+   :emotes
+   {:no-emotes "No emotes found for this space."
+    :default-title "Emotes"
+    :mode-inline "Inline"
+    :mode-sticker "Sticker"}
+   :suggestions
+   {:no-results "No matches found"}}
+  :navigation
+  {:room-list
+   {:room-settings "Room Settings"
+    :view-chat "View Chat & Lobby"
+    :filters {:all "All"
+              :unread "Unread"
+              :people "People"}
+    :empty-states {:no-rooms "No rooms here..."
+                   :no-results "No results found"}
+    :headers {:home "Home"}}
+   :spaces
+   {:bars {:home "Home"}}}
+
+  :lightbox
+  {:open-original "Open Original"
+   :download "Download"
+   :close "Close"}
+  :boot
+  {:loading-text "Taking you to Paradise"
+   :preparing "Preparing your workspace..."
+   :fetching "Fetching messages..."}
+  :settings
+  {:tabs {:my-account "My Account"
+          :verification "Verification"
+          :accounts "Accounts"
+          :notifications "Notifications"
+          :language-time "Language/Time"
+          :about "About"}
+   :groups {:user-settings "User Settings"
+            :app "App"}
+   :modal {:esc "ESC"
+           :tab-not-found "Tab not found"}
+   :context-menu
+   {:set-status "Set Status"
+    :copy-id "Copy ID"
+    :logout "Log Out"}
+   :verification
+   {:title "Device Verification"
+    :description "Enter your Security Key or Recovery Passphrase to verify this session and unlock encrypted messages."
+    :status {:success-title "Session Verified"
+             :success-subtitle "Your end-to-end encrypted messages are now unlocked."
+             :is-verifying "Verifying..."
+             :verify-action "Verify Session"}
+    :form {:label "Security Phrase / Key"
+           :placeholder "Enter your phrase..."
+           :error-prefix "Error: "}}
+   :language-time
+   {:today "Today"
+    :yesterday "Yesterday"
+    :title "Language & Region"
+    :description "Customize how languages, dates, and times appear."
+    :system-label "System Language"
+    :time-label "Time Format"
+    :time-24 "24-hour (13:00)"
+    :time-12 "12-hour (1:00 PM)"}
+   :about
+   {:title "About"
+    :description "%1 is a lightweight, modern Matrix client built with ClojureScript and Re-frame utilizing the Rust-SDK through WASM. Somewhat documented using org-mode."
+    :updates-title "Updates"
+    :updates-desc "The app automatically checks for updates in the background, but you can also check manually."
+    :check-updates "Check for Updates"}
+   :accounts
+   {:title "Managed Accounts"
+    :description "Switch between your active Matrix sessions or add a new one."
+    :empty-state "No accounts configured."
+    :add-account "Add Account"}
+   :account-item
+   {:active-status "● Active"
+    :switch-button "Switch"}
+   :notifications
+   {:title "Push Notifications"
+    :description "Enable push notifications to receive alerts for new messages and mentions even when the app is in the background."
+    :status {:active-title "Notifications Active"
+             :active-subtitle "You are receiving push alerts on this device."}
+    :enable-btn "Enable Push Notifications"}
+   :profile
+   {:title "My Account"
+    :unknown-user "Unknown User"}}}}
+
+
+
