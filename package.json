@@ -1,9 +1,9 @@
 {
     "name": "Paradise",
-    "version": "0.0.0",
+    "version": "0.13.0",
     "repository": {
         "type": "git",
-        "url": "https://github.com/GigiaJ/Paradise"
+        "url": "https://github.com/Paradise-in-Matrix/Paradise"
     },
     "scripts": {
         "notangle": "concurrently \"npx shadow-cljs watch app\" \"npx vite\"",
@@ -22,7 +22,7 @@
         "@tiptap/extension-placeholder": "^3.20.0",
         "@tiptap/react": "^3.20.0",
         "@tiptap/starter-kit": "^3.20.0",
-        "generated-compat": "file:./packages/generated-compat",
+        "ffi-bindings": "^1.0.1",
         "matrix-widget-api": "^1.17.0",
         "nbb": "^1.4.206",
         "react": "^19",
