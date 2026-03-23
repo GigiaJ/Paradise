@@ -188,6 +188,48 @@ https://day8.github.io/re-frame/application-state/
 #+end_src
 
 
+***** i18n
+So we utilize a library written by the same individual who created the logging solution we use.
+It is called Tempura. It provides a nice and easy way to actually create mappings to entries
+and easy use around the repository to utilize them.
+
+We want to be sure with the reframe components that we don't call unnecessarily. So segmenting
+locale and dictionary allows us to only ever update strings if we explicitly change the
+displayed language.
+#+begin_src clojurescript :tangle ../src/app.cljs
+(re-frame/reg-sub
+ :i18n/locale
+ (fn [db _] (:locale db)))
+
+(re-frame/reg-sub
+ :i18n/dictionary
+ (fn [db _] (:dictionary db)))
+
+(re-frame/reg-sub
+ :i18n/tr
+ (fn [db _]
+   (let [locale (get db :locale :en)
+         dictionary (get db :dictionary {})]
+     (if (empty? dictionary)
+       (fn [k & _] (str "[" (name (last k)) "]"))
+       (partial tempura/tr {:dict dictionary} [locale :en])))))
+
+(re-frame/reg-event-db
+ :i18n/set-dictionary
+ (fn [db [_ dict]]
+   (assoc db :dictionary dict)))
+
+(re-frame/reg-event-db
+ :i18n/set-locale
+ (fn [db [_ locale]]
+   (assoc db :locale locale)))
+
+
+#+end_src
+
+
+
+
 **** CSS Swapping
 
 We want to provide style switching (and even layout behavior later)
