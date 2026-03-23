@@ -286,6 +286,17 @@ We need to be able to convert timestamps to date otherwise people might not be t
                     " is following the conversation"
                     " are following")))))
 
+(defn get-status-string [tr type names]
+  (let [cnt (count names)
+        base-path (if (= type :typing)
+                    "container.timeline.status.typing"
+                    "container.timeline.status.reading")]
+    (case cnt
+      0 ""
+      1 (tr [(keyword base-path "one")] [(first names)])
+      2 (tr [(keyword base-path "two")] [(first names) (second names)])
+      3 (tr [(keyword base-path "three")] [(first names) (second names) (nth names 2)])
+      (tr [(keyword base-path "many")] [(first names) (second names) (- cnt 2)]))))
 
 #+end_src
 
