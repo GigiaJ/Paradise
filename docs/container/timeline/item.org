@@ -685,11 +685,11 @@ individual's display name.
                        (re-frame/dispatch
                         [:context-menu/open
                          {:x mx :y my
-                          :items (build-message-actions item active-room my-id mx my)}]))]
+                          :items (build-message-actions tr item active-room my-id mx my)}]))]
     (if (= type :virtual)
       (case (:tag item)
-        "DateDivider" [date-divider (:ts item)]
-        [system-event-view "-" "Timeline Separator"])
+        "DateDivider" [date-divider tr (:ts item)]
+        [system-event-view "-" (tr [:container.timeline.status/timeline-separator])])
       [swipe-to-action-wrapper
        {:can-edit? is-own?
         :on-action (fn [action] (re-frame/dispatch [:input/set-context active-room action item]))
