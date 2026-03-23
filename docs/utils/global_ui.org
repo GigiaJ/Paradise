@@ -226,6 +226,16 @@ them collected together
 
 
 
+**** Global Modal Root
+
+
+***** Reframe Subscriptions and Events
+
+We want to make sure we track this across the app so that we can
+simply inform the component of when to render and what to render.
+It makes allowing potential support for dynamic behavior later
+much simpler.
+
 **** Global Reaction Picker
 
 
