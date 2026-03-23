@@ -104,7 +104,6 @@ help anyone later who wants to make changes to aspects of the timeline.
                           {:tag kind-tag
                            :in-reply-to
                            (when-let [reply-ffi (.-inReplyTo msg-like-content)]
-                         ;; (.eventId ...) calls the function, returning the real string!
                              {:event-id (.eventId reply-ffi)})
                            :inner (case kind-tag
                                     "Message"
@@ -143,7 +142,6 @@ help anyone later who wants to make changes to aspects of the timeline.
                         "FailedToParseMessageLike"
                         {:error      (.-error content-inner)
                          :event-type (.-eventType content-inner)}
-
                         "RoomMembership" {:change (some-> content-inner .-change .-name)}
                         "ProfileChange"  {:id real-id}
                         nil)})
