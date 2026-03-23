@@ -232,6 +232,36 @@ help anyone later who wants to make changes to aspects of the timeline.
 #+end_src
 
 
+***** Component
+
+
+#+begin_src clojurescript :tangle ../../../src/container/timeline/item.cljs
+
+
+#+end_src
+
+
+
+**** Item Reframe Events, Effects, and Subscriptions
+
+#+begin_src clojurescript :tangle ../../../src/container/timeline/item.cljs
+
+(re-frame/reg-event-fx
+ :msg/toggle-pin
+ (fn [{:keys [db]} [_ room-id msg-id]]
+   (let [timeline (get-in db [:timeline-subs room-id :timeline])]
+     (if-not timeline
+       (log/error "No timeline found for pinning")
+       (-> (.pinEvent timeline msg-id)
+           (.then (fn [was-pinned?]
+                    (if was-pinned?
+                      (log/info "Message pinned:" msg-id)
+                      (-> (.unpinEvent timeline msg-id)
+                          (.then #(log/info "Message unpinned:" msg-id))
+                          (.catch #(js/console.error %))))))
+           (.catch #(js/console.error %)))))
+   {}))
+
 (re-frame/reg-event-fx
  :msg/delete
  (fn [{:keys [db]} [_ room-id msg-id]]
