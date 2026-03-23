@@ -461,27 +461,34 @@ read receipts. This prevents any sort of spamming to the home server.
         ]
     [:div.message-hover-toolbar
      [:div.toolbar-btn
-      {:title "Add Reaction"
+      {:title    (tr [:container.timeline.item/react])
        :on-click (fn [e]
                    (.preventDefault e)
-              (.stopPropagation e)
-              (let [mouse-x (.-clientX e)
-                    mouse-y (.-clientY e)]
-                (re-frame/dispatch [:msg/open-reaction-picker active-room msg-id mouse-x mouse-y])))}
+                   (.stopPropagation e)
+                   (let [mouse-x (.-clientX e)
+                         mouse-y (.-clientY e)]
+                     (re-frame/dispatch
+                      [:ui/open-popover :reaction-picker
+                       {:room-id active-room
+                        :msg-id  e-t-id
+                        :x       mouse-x
+                        :y       mouse-y
+                        :width   320
+                        :height  380}])))}
       [icons/smiley]]
      [:div.toolbar-btn
-      {:title "Reply"
+      {:title (tr [:container.timeline.item/reply])
        :on-click #(re-frame/dispatch [:input/set-context active-room :reply item])}
       [icons/reply]
       ]
      (when (:is-own? item)
        [:div.toolbar-btn
-        {:title "Edit"
+        {:title (tr [:container.timeline.item/edit-message])
          :on-click #(re-frame/dispatch [:input/set-context active-room :edit item])}
         [icons/edit]
         ])
      [:div.toolbar-btn
-      {:title "More"
+      {:title (tr [:container.timeline.item/more])
        :on-click (fn [e]
                    (.stopPropagation e)
                    (let [mx (.-clientX e)
