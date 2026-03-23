@@ -582,9 +582,13 @@ when we detatch and reload (basically when you hit control + s to save).
 (defn ^:export init []
   (re-frame/dispatch-sync [:initialize-db])
   (-> (load-config)
+
+
       (p/then (fn [config]
                 (re-frame/dispatch-sync [:app/config-loaded config])
                 (log/info "Config loaded:" config)
+                (load-i18n)))
+      (p/then (fn [_]
                 (let [params  (js/URLSearchParams. js/window.location.search)
                       room-id (.get params "room")]
                   (re-frame/dispatch [:app/bootstrap])
@@ -595,7 +599,7 @@ when we detatch and reload (basically when you hit control + s to save).
                       (.replaceState js/window.history #js {} "" new-url))))
                 (mount-root)
                 (js/setInterval #(re-frame/dispatch [:app/poll-version false]) (* 1000 60 15))))
-      (p/catch #(log/error "Failed to load config.edn" %))))
+      (p/catch #(log/error "App initialization failed:" %))))
 
 
 (defn ^:after-load re-render []
