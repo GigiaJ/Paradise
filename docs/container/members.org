@@ -494,59 +494,6 @@ We definitely want some color though.
 **** Global Profile Preview
 
 
-***** Reframe Events and Subscriptions
-
-#+begin_src clojurescript :tangle ../../src/container/members.cljs
-(re-frame/reg-event-db
- :profile-preview/open
- (fn [db [_ {:keys [x y member tags]}]]
-   (assoc db :profile-preview {:open? true :x x :y y :member member :tags tags})))
-
-(re-frame/reg-event-db
- :profile-preview/close
- (fn [db _]
-   (assoc db :profile-preview {:open? false})))
-
-(re-frame/reg-sub
- :profile-preview/state
- (fn [db _]
-   (:profile-preview db {:open? false})))
-#+end_src
-
-
-***** Component
-
-#+begin_src clojurescript :tangle ../../src/container/members.cljs
-
-(defn global-profile-preview []
-  (let [{:keys [open? x y member tags]} @(re-frame/subscribe [:profile-preview/state])]
-    (when (and open? member)
-      (let [pl         (:power-level member)
-            tag-data   (get tags (keyword (str pl)))
-            role-name  (:name tag-data)
-            role-color (or (:color tag-data) "var(--text-primary)")
-            icon-url   (some-> tag-data :icon :key mxc->url)]
-        [:div.profile-preview-card
-         {:style {:left (max 10 x) :top y}}
-         [:div.profile-preview-cover]
-         [:div.profile-preview-content
-          [:div.profile-preview-avatar-wrap
-           [avatar {:id (:user-id member)
-                    :name (:display-name member)
-                    :url (mxc->url (:avatar-url member))
-                    :size 64}]]
-          [:div.profile-preview-id-block
-           [:span.profile-preview-name {:style {:color role-color}}
-            (:display-name member)]
-           [:span.profile-preview-id
-            (:user-id member)]]
-          (when role-name
-            [:div.profile-preview-role-row
-             (when icon-url
-               [:img.member-item-role-icon {:src icon-url}])
-             [:span.profile-preview-role-text {:style {:color role-color}}
-              role-name]])]]))))
-#+end_src
 
 
 
