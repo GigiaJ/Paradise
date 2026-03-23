@@ -365,38 +365,47 @@ We definitely want some color though.
 
 
 #+begin_src clojurescript :tangle ../../src/container/members.cljs
-
-(defn profile-popover-trigger [member custom-tags active-room & children]
+(defn profile-popover-trigger [member custom-tags active-room pos & children]
   (r/with-let [!hover-timer (atom nil)
                clear-timer! #(when @!hover-timer
                                (js/clearTimeout @!hover-timer)
                                (reset! !hover-timer nil))]
-    (into [:div
-           {:style {:display "inline-block" :cursor "pointer"}
-            :on-mouse-enter (fn [e]
-                              (let [rect (.getBoundingClientRect (.-currentTarget e))
-                                    px (+ (.-right rect) 15)
-                                    py (.-top rect)]
+    (let [tr @(re-frame/subscribe [:i18n/tr])]
+      (into [:div
+             {:style {:display "inline-block" :cursor "pointer"}
+              :on-mouse-enter (fn [e]
+                                (let [rect (.getBoundingClientRect (.-currentTarget e))
+                                      px (if (= pos :left)
+                                           (- (.-left rect) 265)
+                                           (+ (.-right rect) 15))
+                                      py (.-top rect)]
+                                  (clear-timer!)
+                                  (reset! !hover-timer
+                                          (js/setTimeout
+                                           #(re-frame/dispatch
+                                             [:ui/open-popover :profile-preview
+                                              {:x         px
+                                               :y         py
+                                               :width     265
+                                               :height    150
+                                               :backdrop? false
+                                               :member    member
+                                               :tags      custom-tags}])
+                                           400))))
+              :on-mouse-leave (fn []
                                 (clear-timer!)
-                                (reset! !hover-timer
-                                        (js/setTimeout
-                                         #(re-frame/dispatch [:profile-preview/open
-                                                              {:x px :y py :member member :tags custom-tags}])
-                                         400))))
-            :on-mouse-leave (fn []
-                              (clear-timer!)
-                              (re-frame/dispatch [:profile-preview/close]))
-            :on-context-menu (fn [e]
-                               (.preventDefault e)
-                               (.stopPropagation e)
-                               (clear-timer!)
-                               (re-frame/dispatch [:profile-preview/close])
-                               (re-frame/dispatch
-                                [:context-menu/open
-                                 {:x (.-clientX e)
-                                  :y (.-clientY e)
-                                  :items (build-member-actions member active-room)}]))}]
-          children)))
+                                (re-frame/dispatch [:ui/close-popover]))
+              :on-context-menu (fn [e]
+                                 (.preventDefault e)
+                                 (.stopPropagation e)
+                                 (clear-timer!)
+                                 (re-frame/dispatch [:ui/close-popover])
+                                 (re-frame/dispatch
+                                  [:context-menu/open
+                                   {:x (.-clientX e)
+                                    :y (.-clientY e)
+                                    :items (build-member-actions tr member active-room)}]))}]
+            children))))
 
 #+end_src
 
