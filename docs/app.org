@@ -65,6 +65,7 @@ This also serves as a good example of where to start with modifying the UI
    :active-space-id "!space1:example.com"
    :active-room-id "!room1:example.com"})
 
+
 (def default-db
   {:spaces {}
    :rooms  {}
@@ -74,6 +75,8 @@ This also serves as a good example of where to start with modifying the UI
    :login-error nil
    :client nil
    :config {:version "0.0.0"}
+   :locale :en
+   :dictionary {}
    :update-available? false}
    )
 #+end_src
@@ -85,7 +88,8 @@ https://day8.github.io/re-frame/application-state/
 (re-frame/reg-event-db
  :initialize-db
  (fn [_ _]
-   default-db))
+   default-db
+   ))
 #+end_src
 
 
