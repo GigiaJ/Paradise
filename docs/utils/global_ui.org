@@ -254,6 +254,44 @@ much simpler.
 #+end_src
 
 
+
+#+begin_src clojurescript :tangle ../../src/utils/global_ui.cljs
+(defn- modal-inner
+  [{:keys [on-close backdrop-props window-props]} children]
+  (r/with-let [handle-keyup (fn [e] (when (= (.-key e) "Escape") (on-close)))
+               _ (.addEventListener js/window "keyup" handle-keyup)]
+    [:div.modal-backdrop
+     (merge {:class "settings-backdrop"
+             :on-click on-close}
+            backdrop-props)
+     (into [:div.modal-window
+            (merge {:class "settings-window"
+                    :on-click #(.stopPropagation %)}
+                   window-props)]
+           children)]
+    (finally
+      (.removeEventListener js/window "keyup" handle-keyup))))
+
+(defn generic-modal
+  [{:keys [is-open?] :as props} & children]
+  (when is-open?
+    [modal-inner props children]))
+
+  (defn modal-root []
+  (let [active-modal @(re-frame/subscribe [:ui/active-modal])]
+    (when active-modal
+      (let [{:keys [id props]} active-modal
+            _ (log/error active-modal)
+            close-fn           #(re-frame/dispatch [:ui/close-modal])
+            TargetComponent    (modal-component id)]
+        [generic-modal
+         {:is-open?       true
+          :on-close       close-fn
+          :backdrop-props (:backdrop-props props)
+          :window-props   (:window-props props)}
+         [TargetComponent props]]))))
+#+end_src
+
 **** Global Reaction Picker
 
 
