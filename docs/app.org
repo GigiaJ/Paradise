@@ -38,7 +38,6 @@ actual UI components themselves.
    [overlays.reactions]
    [auth.events :refer [login-screen]]
    [container.call.call-container :refer [persistent-call-container]]
-   [container.members :refer [global-profile-preview]]
    [client.config :refer [load-config check-remote-version load-i18n]]
    [taoensso.tempura :as tempura :refer [tr]]
    [utils.global-ui :refer [global-reaction-picker modal-root popover-root global-context-menu satellite-overlay]]
