@@ -18,7 +18,6 @@ diffs like Timeline, Spaces, and Rooms.
 
 
 #+begin_src clojurescript :tangle ../../src/container/members.cljs
-
 (ns container.members
   (:require
    [re-frame.core :as re-frame]
@@ -344,14 +343,19 @@ We definitely want some color though.
 
 
 #+begin_src clojurescript :tangle ../../src/container/members.cljs
-(defn build-member-actions [{:keys [user-id display-name]} active-room]
-  [{:id "view-profile" :label "View Profile"
+(defn build-member-actions [tr {:keys [user-id display-name]} active-room]
+  [{:id "view-profile"
+    :label (tr [:container.member-actions/view-profile])
     :action #(js/console.log "View profile for:" user-id)}
-   {:id "mention" :label (str "Mention @" display-name)
+   {:id "mention"
+    :label (tr [:container.member-actions/mention] [display-name])
     :action #(js/console.log "Mention:" user-id)}
-   {:id "message" :label "Direct Message"
+   {:id "message"
+    :label (tr [:container.member-actions/message])
     :action #(js/console.log "DM:" user-id)}
-   {:id "kick" :label "Kick Member" :class-name "text-danger"
+   {:id "kick"
+    :label (tr [:container.member-actions/kick])
+    :class-name "text-danger"
     :action #(js/console.log "Kick:" user-id)}])
 #+end_src
 
