@@ -453,14 +453,14 @@ is reached. This should probably also have a somewhat automatic trigger until
 size is reached, but the behavior may be impacted by the performant issue
 mentioned above. Should be easily sorted, however.
 #+begin_src clojurescript :tangle ../../../src/container/timeline/base.cljs
-(defn virtualized-timeline [initial-events initial-room-id]
+(defn virtualized-timeline [tr initial-events initial-room-id]
   (r/with-let [!start-index    (r/atom 1000000)
                !prev-first-id  (r/atom nil)
                !prev-count     (r/atom 0)
                !initial-idx    (r/atom nil)
                !at-bottom?     (r/atom true)
                !virtuoso-ref   (r/atom nil)]
-    (fn [events room-id]
+    (fn [tr events room-id]
       (let [event-array (to-array events)
             cnt         (count event-array)
             first-id    (some-> (aget event-array 0) :id)
@@ -484,7 +484,7 @@ mentioned above. Should be easily sorted, however.
            [:button.jump-to-bottom
             {:on-click #(.scrollToIndex @!virtuoso-ref #js {:index (dec (+ @!start-index cnt))
                                                             :behavior "smooth"})}
-            "Jump to Present"])
+            (tr [:container.timeline/jump-to-bottom])])
 
          [:> Virtuoso
           {:key room-id
@@ -521,7 +521,9 @@ received an update.
   (let [active-id    @(re-frame/subscribe [:rooms/active-id])
         room-meta    @(re-frame/subscribe [:rooms/active-metadata])
         events       @(re-frame/subscribe [:timeline/current-events])
-        display-name (when active-id (or (when room-meta (.-name room-meta)) active-id))]
+        tr           @(re-frame/subscribe [:i18n/tr])
+        display-name (when active-id (or (when room-meta (.-name room-meta)) active-id))
+       ]
     [:div.timeline-container
      {:style {:display "flex"
               :flex-direction "column"
@@ -536,7 +538,7 @@ received an update.
      (if-not active-id
        [:div.timeline-empty "Select a room to start chatting."]
        [:<>
-        [virtualized-timeline events active-id]
+        [virtualized-timeline tr events active-id]
         [message-input]
         [status-indicator active-id]
         ])]))
