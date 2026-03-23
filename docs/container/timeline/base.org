@@ -28,7 +28,7 @@ we've made interop with the WASM bindings.
             [input.base :refer [message-input inline-editor]]
             [navigation.rooms.room-summary :refer [build-room-summary]]
             [client.diff-handler :refer [apply-matrix-diffs]]
-            ["generated-compat" :as sdk :refer [RoomMessageEventContentWithoutRelation MessageType EditedContent TimelineConfiguration]]
+            ["ffi-bindings" :as sdk :refer [RoomMessageEventContentWithoutRelation MessageType EditedContent TimelineConfiguration]]
             ))
 #+end_src
 
