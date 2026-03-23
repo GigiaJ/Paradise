@@ -14,6 +14,7 @@ Probably needs a better name (and logical grouping)
             [reagent.dom.client :as rdom]
             [promesa.core :as p]
             [client.login :as login]
+            [utils.svg :as icons]
             [service-worker-handler :refer [register-sw!]]
             [taoensso.timbre :as log]))
 #+end_src
