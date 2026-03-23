@@ -38,7 +38,7 @@ and the tab completion.
 
 (re-frame/reg-sub
  :mention/filtered-users
- :<- [:rooms/active-room-members]
+ :<- [:room/members-map]
  :<- [:suggestion/state]
  (fn [[members state] _]
    (let [_ (log/debug members)
