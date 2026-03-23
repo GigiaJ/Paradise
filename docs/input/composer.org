@@ -28,7 +28,7 @@ just keep this to defining the look and feel itself.
             ["@tiptap/extension-link" :default Link]
             ["@tiptap/core" :refer [Extension Node mergeAttributes]]
             ["prosemirror-state" :refer [Plugin PluginKey]]
-            ["generated-compat" :as sdk :refer [MessageType MessageFormat MediaSource UploadSource UploadParameters]]))
+            ["ffi-bindings" :as sdk :refer [MessageType MessageFormat MediaSource UploadSource UploadParameters]]))
 #+end_src
 
 
