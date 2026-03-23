@@ -718,7 +718,7 @@ individual's display name.
              (when-not merge-with-prev?
                [:div.timeline-header
                 [profile-popover-trigger popover-member custom-tags active-room
-                 [:span.timeline-sender-name sender-name]]
+                 nil [:span.timeline-sender-name sender-name] ]
                 [:span.timeline-timestamp (format-time ts)]])
              [:div.timeline-body
               (cond
