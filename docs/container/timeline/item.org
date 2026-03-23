@@ -27,7 +27,7 @@ It is convenient to define the actual items that make up a timeline.
             [navigation.rooms.room-summary :refer [build-room-summary]]
             [utils.svg :as icons]
             [client.diff-handler :refer [apply-matrix-diffs]]
-            ["generated-compat" :as sdk :refer [RoomMessageEventContentWithoutRelation MessageType EditedContent ReceiptType]]
+            ["ffi-bindings" :as sdk :refer [RoomMessageEventContentWithoutRelation MessageType EditedContent ReceiptType]]
             ))
 #+end_src
 
