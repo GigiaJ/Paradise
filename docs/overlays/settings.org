@@ -252,7 +252,8 @@ navigational components.
 
 #+begin_src clojurescript :tangle ../../src/overlays/settings.cljs
 (defn sidebar-profile-mini []
-  (let [profile @(re-frame/subscribe [:sdk/profile])]
+  (let [tr      @(re-frame/subscribe [:i18n/tr])
+        profile @(re-frame/subscribe [:sdk/profile])]
     [:div.sidebar-profile-mini
      [:div.profile-trigger
       {:style {:user-select "none"}
@@ -265,9 +266,16 @@ navigational components.
                            [:context-menu/open
                             {:x (.-clientX e)
                              :y (.-clientY e)
-                             :items [{:id "status" :label "Set Status" :action #(js/console.log "Status")}
-                                     {:id "copy"   :label "Copy ID" :action #(js/console.log "Copied")}
-                                     {:id "logout" :label "Log Out" :action #(re-frame/dispatch [:sdk/logout]) :class-name "danger"}]}]))}
+                             :items [{:id "status"
+                                      :label (tr [:settings.context-menu/set-status])
+                                      :action #(log/info "Status")}
+                                     {:id "copy"
+                                      :label (tr [:settings.context-menu/copy-id])
+                                      :action #(log/info "Copied")}
+                                     {:id "logout"
+                                      :label (tr [:settings.context-menu/logout])
+                                      :action #(re-frame/dispatch [:sdk/logout])
+                                      :class-name "danger"}]}]))}
       (if (:avatar-url profile)
         [:img.profile-avatar {:src (mxc->url (:avatar-url profile))}]
         [:div.avatar-placeholder (subs (or (:display-name profile) "?") 0 1)])
