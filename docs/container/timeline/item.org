@@ -749,16 +749,46 @@ individual's display name.
           [:div.timeline-metadata
            (when (seq reactions)
              [:div.reactions-row
-              (for [[emoji count] reactions]
+              (for [[emoji count senders] reactions]
                 ^{:key emoji}
-                [:span.reaction-pill
-                 (if (clojure.string/starts-with? emoji "mxc://")
-                   [:img.reaction-custom {:src (mxc->url emoji {:width 32 :height 32 :method "crop"})}]
-                   [:span.reaction-emoji emoji])
-                 [:span.reaction-count count]])])
+                (let [hover-text (->> senders
+                                      (map (fn [uid]
+                                             (or (:display-name (get members-map uid))
+                                                 uid)))
+                                      (str/join ", "))]
+                  [:span.reaction-pill
+                   {:class (when (contains? senders my-id) "active")
+                    :title hover-text
+                    :on-context-menu (fn [e]
+                                       (.preventDefault e)
+                                       (.stopPropagation e)
+                                       (re-frame/dispatch
+                                        [:ui/open-modal :reaction-details
+                                         {:room-id active-room
+                                          :reactions reactions
+                                          :window-props {:style {:max-width "400px" :min-height "300px"}}}]))
+                    :on-click (fn [e]
+                                (.preventDefault e)
+                                (.stopPropagation e)
+                                (re-frame/dispatch [:sdk/toggle-reaction
+                                                    active-room
+                                                    (:event-or-transaction-id item)
+                                                    emoji]))
+                    :style {:cursor "pointer"
+                            :user-select "none"}}
+                   (if (str/starts-with? emoji "mxc://")
+                     [:img.reaction-custom
+                      {:src (mxc->url emoji {:width 32 :height 32 :method "crop"})
+                       :style {:pointer-events "none"}}]
+                     [:span.reaction-emoji
+                      {:style {:pointer-events "none"}}
+                      emoji])
+                   [:span.reaction-count
+                    {:style {:pointer-events "none"}}
+                    count]]))])
            #_(when (seq read-by)
-             [:div.read-receipts-row
-              [:span.receipt-count (str "✓ " (count read-by))]])])]])))
+               [:div.read-receipts-row
+                [:span.receipt-count (str "✓ " (count read-by))]])])]])))
 
 #+end_src
 
@@ -786,8 +816,6 @@ individual's display name.
     (finally
       (when-let [node @node-ref]
         (unobserve-node node)))))
-;;
-;;
 
 #+end_src
 
