@@ -214,6 +214,24 @@ help anyone later who wants to make changes to aspects of the timeline.
    (:active-reaction-picker db)))
 
 
+(re-frame/reg-event-db
+ :ui/open-reaction-details
+ (fn [db [_ room-id reactions]]
+   (assoc db :active-reaction-details {:room-id room-id :reactions reactions})))
+
+(re-frame/reg-event-db
+ :ui/close-reaction-details
+ (fn [db _]
+   (dissoc db :active-reaction-details)))
+
+(re-frame/reg-sub
+ :ui/active-reaction-details
+ (fn [db _]
+   (:active-reaction-details db)))
+  
+#+end_src
+
+
 (re-frame/reg-event-fx
  :msg/delete
  (fn [{:keys [db]} [_ room-id msg-id]]
