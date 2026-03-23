@@ -236,6 +236,24 @@ simply inform the component of when to render and what to render.
 It makes allowing potential support for dynamic behavior later
 much simpler.
 
+#+begin_src clojurescript :tangle ../../src/utils/global_ui.cljs
+(re-frame/reg-event-db
+ :ui/open-modal
+ (fn [db [_ modal-id props]]
+   (assoc db :active-modal {:id modal-id :props props})))
+
+(re-frame/reg-event-db
+ :ui/close-modal
+ (fn [db _]
+   (dissoc db :active-modal)))
+
+(re-frame/reg-sub
+ :ui/active-modal
+ (fn [db _]
+   (:active-modal db)))
+#+end_src
+
+
 **** Global Reaction Picker
 
 
