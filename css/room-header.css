@@ -120,3 +120,9 @@
 .header-icon-btn.active-green {
     color: #43b581;
 }
+
+.header-left {
+    display: flex;
+    flex-direction: row;
+
+}
