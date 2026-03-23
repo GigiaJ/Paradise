@@ -63,6 +63,7 @@ help anyone later who wants to make changes to aspects of the timeline.
                 real-id        (if (= e-t-tag "EventId")
                                  (.-eventId e-t-inner)
                                  (.-transactionId e-t-inner))
+;;                _ (js/console.error event)
                 content        (.-content event)
                 content-tag    (.-tag content)
                 content-inner  (.-inner content)
