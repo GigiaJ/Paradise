@@ -111,7 +111,7 @@ This is more or less where the layout and control of the container's contents wi
                [:button.sidebar-close
                 {:style {:background "transparent" :border "none" :color "var(--text-secondary)" :cursor "pointer"}
                  :on-click #(re-frame/dispatch [:container/set-side-panel nil])}
-                "✕"]])
+                [icons/exit]]])
 
             [:div.sidebar-content
              {:style {:flex 1 :overflow "hidden"}}
