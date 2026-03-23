@@ -467,7 +467,7 @@ A simple smiley icon is nice to indicate emoji functionality
 
 And maybe a send button for later use in the style of a paper plane.
 #+begin_src clojurescript :tangle ../../src/utils/svg.cljs
-(defn send-icon [props]
+(defn send [props]
   [icon-base (merge {:width "20px" :height "20px"} props)
    [:path {:d "M22 2L11 13"}]
    [:path {:d "M22 2L15 22L11 13L2 9L22 2Z"}]])
