@@ -333,35 +333,18 @@ Simple verification tab for now
 
 #+begin_src clojurescript :tangle ../../src/overlays/settings.cljs
 (defn my-account-tab [profile]
-  [:<>
-   [:h2.settings-heading "My Account"]
-   [:div.profile-card
-    (if (:avatar-url profile)
-      [:img.profile-avatar-large {:src (mxc->url (:avatar-url profile))}]
-      [:div.profile-avatar-placeholder-large])
-    [:div.profile-info
-     [:div.profile-name (or (:display-name profile) "Unknown User")]
-     [:div.profile-id (:user-id profile)]]]])
-
-(defn settings-modal []
-  (let [is-open?   @(re-frame/subscribe [:settings/is-open?])
-        active-tab @(re-frame/subscribe [:settings/active-tab])
-        profile    @(re-frame/subscribe [:sdk/profile])]
-    (when is-open?
-      [:div.settings-backdrop
-       {:on-click #(re-frame/dispatch [:settings/close])}
-       [:div.settings-window
-        {:on-click #(.stopPropagation %)}
-        [settings-sidebar active-tab]
-        [:div.settings-content
-         [:div.close-button
-          {:on-click #(re-frame/dispatch [:settings/close])}
-          [:span "✕"]
-          [:span.esc-text "ESC"]]
-         (case active-tab
-           :my-account   [my-account-tab profile]
-           :verification [verification-tab]
-           [:div {:style {:color "#fff"}} "Tab not found"])]]])))
+  (let [tr @(re-frame/subscribe [:i18n/tr])]
+    [:<>
+     [:h2.settings-heading (tr [:settings.profile/title])]
+     [:div.profile-card
+      (if (:avatar-url profile)
+        [:img.profile-avatar-large {:src (mxc->url (:avatar-url profile))}]
+        [:div.profile-avatar-placeholder-large])
+      [:div.profile-info
+       [:div.profile-name
+        (or (:display-name profile)
+            (tr [:settings.profile/unknown-user]))]
+       [:div.profile-id (:user-id profile)]]]]))
 #+end_src
 
 
