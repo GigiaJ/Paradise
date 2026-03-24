@@ -35,7 +35,7 @@
 .room-item {
     display: flex;
     align-items: center;
-    padding: 8px 12px;
+    padding: 6px 12px;
     cursor: pointer;
     gap: 10px;
 }
