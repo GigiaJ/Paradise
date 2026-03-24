@@ -14,7 +14,7 @@
             ["@tiptap/extension-link" :default Link]
             ["@tiptap/core" :refer [Extension Node mergeAttributes]]
             ["prosemirror-state" :refer [Plugin PluginKey]]
-            ["generated-compat" :as sdk :refer [MessageType MessageFormat MediaSource UploadSource UploadParameters]]))
+            ["ffi-bindings" :as sdk :refer [MessageType MessageFormat MediaSource UploadSource UploadParameters]]))
 
 (defn renderHtml [^js props]
   (let [attrs         (.-HTMLAttributes props)
@@ -156,12 +156,13 @@
         on-files     (.. props -children -onFiles)
         on-change    (.. props -children -onChange)
         loaded-text  (.. props -children -loadedText)
+        placeholder  (.. props -children -placeholder)
         on-ready     (.. props -children -onEditorReady)
         latest-cbs   (react/useRef #js {:onSend on-send :onFiles on-files})
         _            (set! (.-current latest-cbs) #js {:onSend on-send :onFiles on-files})
         editor (useEditor
                 #js {:extensions #js [(.configure StarterKit #js {})
-                                      (.configure Placeholder #js {:placeholder "Type a message..."})
+                                      (.configure Placeholder #js {:placeholder placeholder})
                                       (.configure submit-extension
                                       #js {:onSend (fn [text html]
                                                      (let [cb (.-onSend (.-current latest-cbs))]
