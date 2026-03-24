@@ -916,19 +916,6 @@ checking for the "kind" of room. For now though, this is plenty sufficient.
 
 **** Room List Component
 
-#+begin_src css :tangle ../../../css/room-list.css
-
-.sidebar-rooms {
-    width: 240px;
-    flex-shrink: 0;
-    background-color: #2b2d31;
-    display: flex;
-    flex-direction: column;
-    padding: 12px;
-}
-
-
-#+end_src
 
 
 Now for the CSS
@@ -940,6 +927,7 @@ Now for the CSS
     display: flex;
     flex-direction: column;
     padding: 12px;
+    height: 100%;
 }
 
 .room-header {
@@ -965,6 +953,11 @@ Now for the CSS
     height: 100vh;
     display: grid;
     overflow: hidden;
+}
+
+.room-collection {
+    flex: 1;
+    min-height: 0;
 }
 
 .room-header {
