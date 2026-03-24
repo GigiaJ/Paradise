@@ -21,6 +21,7 @@ not (among many other indicators).
             [navigation.rooms.room-list :refer [process-parent-queue!]]
             [client.diff-handler :refer [apply-matrix-diffs apply-generic-diffs!]]
             [overlays.settings :refer [sidebar-profile-mini]]
+            [utils.svg :as icons]
             [utils.helpers :refer [mxc->url]]
             [utils.global-ui :refer [avatar]]
             [taoensso.timbre :as log]))
@@ -153,7 +154,7 @@ graph out for us what the Space contains.
                     (p/let [sub-handle (.subscribeToRoomUpdate space-list listener)
                             _ (re-frame/dispatch [:sdk/save-space-sub space-list sub-handle])
                             _ (.paginate space-list)
-
+                            
                             ]
                       ;;(apply-space-rooms-diffs! space-id #js {:tag "Reset" :inner initial-rooms})
                       )
