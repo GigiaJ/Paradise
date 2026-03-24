@@ -987,7 +987,8 @@ or our active room changes. We then add some decorating Hiccup around it to roun
 component.
 #+begin_src clojurescript :tangle ../../../src/navigation/rooms/room_list.cljs
 (defn room-list []
-  (let [rooms           @(re-frame/subscribe [:rooms/current-view])
+  (let [tr              @(re-frame/subscribe [:i18n/tr])
+        rooms           @(re-frame/subscribe [:rooms/current-view])
         active-room     @(re-frame/subscribe [:rooms/active-id])
         active-space    @(re-frame/subscribe [:spaces/active-metadata])
         closed-drawers  @(re-frame/subscribe [:rooms/closed-drawers])
