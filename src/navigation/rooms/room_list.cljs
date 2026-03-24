@@ -8,7 +8,7 @@
    [navigation.rooms.room-summary :refer [build-room-summary]]
    [navigation.rooms.entry :refer [build-room-actions render-room-item active-call-panel room-type-call?]]
    [client.diff-handler :refer [apply-matrix-diffs]]
-   ["generated-compat" :as sdk :refer [RoomListEntriesDynamicFilterKind RoomListFilterCategory]]))
+   ["ffi-bindings" :as sdk :refer [RoomListEntriesDynamicFilterKind RoomListFilterCategory]]))
 
 (re-frame/reg-event-db
  :rooms/parent-resolved
@@ -378,13 +378,13 @@
  (fn [db _]
    (get db :rooms-unfiltered-cache {})))
 
-(re-frame/reg-sub
+#_(re-frame/reg-sub
  :rooms/active-room-members
  :<- [:rooms/active-id]
  (fn [active-id db]
    (get-in db [:rooms/members active-id] [])))
 
-(re-frame/reg-event-fx
+#_(re-frame/reg-event-fx
  :rooms/fetch-members
  (fn [{:keys [db]} [_ room-id]]
    (let [client (:client db)]
@@ -400,7 +400,7 @@
          (log/warn "Could not find room in client for members fetch:" room-id))))
    {}))
 
-(re-frame/reg-event-db
+#_(re-frame/reg-event-db
  :rooms/save-members
  (fn [db [_ room-id members]]
    (assoc-in db [:rooms/members room-id] members)))
@@ -548,17 +548,21 @@
 
 
 (defn filter-toggle-bar []
-  (let [active-filter @(re-frame/subscribe [:room-list/active-filter])]
+  (let [tr            @(re-frame/subscribe [:i18n/tr])
+        active-filter @(re-frame/subscribe [:room-list/active-filter])]
     [:div.filter-bar
-     (for [[id label] [["all" "All"] ["unread" "Unread"] ["people" "People"]]]
+     (for [[id label-key] [["all"    :navigation.room-list.filters/all]
+                           ["unread" :navigation.room-list.filters/unread]
+                           ["people" :navigation.room-list.filters/people]]]
        ^{:key id}
        [:button.filter-btn
         {:class    (when (= active-filter id) "active")
          :on-click #(re-frame/dispatch [:room-list/apply-filter id])}
-        label])]))
+        (tr [label-key])])]))
 
-(defn virtualized-room-list [client room-array active-space active-room closed-drawers active-filter]
-  (let [item-renderer (render-room-item client room-array active-space active-room closed-drawers active-filter)]
+
+(defn virtualized-room-list [tr client room-array active-space active-room closed-drawers active-filter]
+  (let [item-renderer (render-room-item tr client room-array active-space active-room closed-drawers active-filter)]
     [:> Virtuoso
      {:style {:height "100%" :width "100%"}
       :data room-array
@@ -566,23 +570,24 @@
       :itemContent item-renderer}]))
 
 (defn room-list []
-  (let [rooms           @(re-frame/subscribe [:rooms/current-view])
+  (let [tr              @(re-frame/subscribe [:i18n/tr])
+        rooms           @(re-frame/subscribe [:rooms/current-view])
         active-room     @(re-frame/subscribe [:rooms/active-id])
         active-space    @(re-frame/subscribe [:spaces/active-metadata])
         closed-drawers  @(re-frame/subscribe [:rooms/closed-drawers])
         active-filter   @(re-frame/subscribe [:room-list/active-filter])
         client          @(re-frame/subscribe [:sdk/client])
         room-array      (to-array rooms)]
-    (log/warn active-space)
     [:div.sidebar-rooms
-     {:style {:display "flex" :flex-direction "column" :height "100%"}}
-     [:h3.rooms-header {:style {:padding "8px"}}
+     [:div.room-list-header
+
       (if active-space
-        [:<> [:h3 {:style {:margin 0 :font-size "1.1rem"}} (:name active-space)]])]
+        [:h3.room-list-header (:name active-space)]
+        [:h3.room-list-header (tr [:navigation.room-list.headers/home])])]
      (when-not active-space
        [filter-toggle-bar])
      (if (or (nil? room-array) (== (alength room-array) 0))
-       [:div.empty-state "No rooms here..."]
-       [:div.room-collection {:style {:flex 1 :min-height 0}}
-        [virtualized-room-list client room-array active-space active-room closed-drawers active-filter]])
+       [:div.empty-state (tr [:navigation.room-list.empty-state/no-rooms])]
+       [:div.room-collection
+        [virtualized-room-list tr client room-array active-space active-room closed-drawers active-filter]])
      [active-call-panel]]))
