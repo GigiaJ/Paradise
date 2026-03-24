@@ -1,6 +1,6 @@
 {
     "name": "Paradise",
-    "version": "0.13.8",
+    "version": "0.14.1",
     "repository": {
         "type": "git",
         "url": "https://github.com/Paradise-in-Matrix/Paradise"
@@ -22,14 +22,16 @@
         "@tiptap/extension-placeholder": "^3.20.0",
         "@tiptap/react": "^3.20.0",
         "@tiptap/starter-kit": "^3.20.0",
+        "emojibase-data": "^17.0.0",
         "ffi-bindings": "^1.0.1",
         "matrix-widget-api": "^1.17.0",
         "nbb": "^1.4.206",
         "react": "^19",
         "react-dom": "^19",
         "react-virtuoso": "^4.18.1",
-        "shadow-cljs": "^3.3.6",
+        "shadow-cljs":  "^3.3.6",
         "typescript": "^5.9.3",
+        "unicode-emoji-json": "^0.8.0",
         "uniffi-bindgen-react-native": "git+https://github.com/jhugman/uniffi-bindgen-react-native#5c01f3f7025d069aac1dd1fd51ca72bb76fdb243",
         "workbox-precaching": "^7.4.0"
     },
