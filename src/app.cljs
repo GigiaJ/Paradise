@@ -1,23 +1,24 @@
 (ns app
   (:require
- [re-frame.core :as re-frame]
+   [re-frame.core :as re-frame]
    [taoensso.timbre :as log]
    [promesa.core :as p]
    [reagent.core :as r]
    [reagent.dom.client :as rdom]
    [navigation.spaces.bar :refer [spaces-sidebar]]
-   [overlays.settings :refer [settings-modal]]
-   [overlays.lightbox :refer [image-lightbox]]
+   [overlays.settings]
+   [overlays.lightbox]
+   [overlays.profiles]
+   [overlays.reactions]
    [auth.events :refer [login-screen]]
    [container.call.call-container :refer [persistent-call-container]]
-   [container.members :refer [global-profile-preview]]
-   [client.config :refer [load-config check-remote-version]]
-   [input.emotes :refer [emoji-sticker-board]]
+   [client.config :refer [load-config check-remote-version load-i18n]]
    [taoensso.tempura :as tempura :refer [tr]]
-   [utils.global-ui :refer [global-reaction-picker global-context-menu satellite-overlay]]
+   [utils.global-ui :refer [global-reaction-picker modal-root popover-root global-context-menu satellite-overlay]]
+   [utils.macros :refer [i18n-data]]
    [client.login :refer [bootstrap!]]
    [navigation.rooms.room-list :refer [room-list]]
-  [container.base :refer [container]]
+   [container.base :refer [container]]
    ))
 
 #_(def default-db
@@ -30,6 +31,7 @@
    :active-space-id "!space1:example.com"
    :active-room-id "!room1:example.com"})
 
+
 (def default-db
   {:spaces {}
    :rooms  {}
@@ -39,13 +41,16 @@
    :login-error nil
    :client nil
    :config {:version "0.0.0"}
+   :locale :en
+   :dictionary {}
    :update-available? false}
    )
 
 (re-frame/reg-event-db
  :initialize-db
  (fn [_ _]
-   default-db))
+   default-db
+   ))
 
 (re-frame/reg-event-db
  :ui/set-sidebar
@@ -136,6 +141,35 @@
 
 
 
+(re-frame/reg-sub
+ :i18n/locale
+ (fn [db _] (:locale db)))
+
+(re-frame/reg-sub
+ :i18n/dictionary
+ (fn [db _] (:dictionary db)))
+
+(re-frame/reg-sub
+ :i18n/tr
+ (fn [db _]
+   (let [locale (get db :locale :en)
+         dictionary (get db :dictionary {})]
+     (if (empty? dictionary)
+       (fn [k & _] (str "[" (name (last k)) "]"))
+       (partial tempura/tr {:dict dictionary} [locale :en])))))
+
+(re-frame/reg-event-db
+ :i18n/set-dictionary
+ (fn [db [_ dict]]
+   (assoc db :dictionary dict)))
+
+(re-frame/reg-event-db
+ :i18n/set-locale
+ (fn [db [_ locale]]
+   (assoc db :locale locale)))
+
+
+
 (re-frame/reg-fx
  :ui/hotswap-css
  (fn [new-filename]
@@ -159,15 +193,13 @@
       :ui/hotswap-css (str "css/" filename)})))
 
 (defn booting-screen []
-  [:div.boot-container
-   [:div.boot-content
-    [:div.boot-logo-wrapper
-     [:div.paradise-logo "P"]]
-    [:div.boot-loading-text
-     [:span "Taking you to Paradise"]
-     [:span.dot-one "."]
-     [:span.dot-two "."]
-     [:span.dot-three "."]]]])
+  (let [tr @(re-frame/subscribe [:i18n/tr])]
+    [:div.boot-container
+     [:div.boot-content
+      [:div.boot-logo-wrapper
+       [:div.paradise-logo "P"]]
+      [:div.boot-loading-text
+       [:span (tr [:boot/loading-text])]]]]))
 
 (defn main-layout []
   (let [auth-status   @(re-frame/subscribe [:auth/status])
@@ -194,15 +226,19 @@
           [:div.mobile-overlay {:on-click #(re-frame/dispatch [:ui/set-sidebar false])}])
         [container]
         ]
-       [settings-modal]
+       [modal-root]
+       [popover-root]
+       ;;      [settings-modal]
        [global-profile-preview]
        [global-context-menu]
-       [satellite-overlay
-          (case active-type
-            :emoji-picker emoji-sticker-board
-            :user-info    user-summary-card
-            nil)]
-       [image-lightbox]
+  ;;     [satellite-overlay
+        ;;  (case active-type
+        ;;    :emoji-picker
+;;        emoji-sticker-board
+          ;;  :user-info    user-summary-card
+       ;;     nil)
+    ;;   ]
+;;       [image-lightbox]
        ]
       [:div "Unknown State"])))
 
@@ -229,9 +265,13 @@
 (defn ^:export init []
   (re-frame/dispatch-sync [:initialize-db])
   (-> (load-config)
+
+
       (p/then (fn [config]
                 (re-frame/dispatch-sync [:app/config-loaded config])
                 (log/info "Config loaded:" config)
+                (load-i18n)))
+      (p/then (fn [_]
                 (let [params  (js/URLSearchParams. js/window.location.search)
                       room-id (.get params "room")]
                   (re-frame/dispatch [:app/bootstrap])
@@ -242,7 +282,7 @@
                       (.replaceState js/window.history #js {} "" new-url))))
                 (mount-root)
                 (js/setInterval #(re-frame/dispatch [:app/poll-version false]) (* 1000 60 15))))
-      (p/catch #(log/error "Failed to load config.edn" %))))
+      (p/catch #(log/error "App initialization failed:" %))))
 
 
 (defn ^:after-load re-render []
