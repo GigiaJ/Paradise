@@ -2,8 +2,10 @@
   (:require
  [promesa.core :as p]
    [re-frame.core :as re-frame]
+   [taoensso.timbre :as log]
    [re-frame.db :as db]
    [reagent.core :as r]
+   [overlays.base :refer [modal-component popover-component]]
    [utils.svg :as icons]
 ;;   [input.emotes :refer [emoji-sticker-board]]
    ))
@@ -108,22 +110,152 @@
                [:span.item-label label]])]])))))
 
 
+(re-frame/reg-event-db
+ :ui/open-modal
+ (fn [db [_ modal-id props]]
+   (assoc db :active-modal {:id modal-id :props props})))
+
+(re-frame/reg-event-db
+ :ui/close-modal
+ (fn [db _]
+   (dissoc db :active-modal)))
+
+(re-frame/reg-sub
+ :ui/active-modal
+ (fn [db _]
+   (:active-modal db)))
+
+(defn- modal-inner
+  [{:keys [on-close backdrop-props window-props]} children]
+  (r/with-let [handle-keyup (fn [e] (when (= (.-key e) "Escape") (on-close)))
+               _ (.addEventListener js/window "keyup" handle-keyup)]
+    [:div.modal-backdrop
+     (merge {:class "settings-backdrop"
+             :on-click on-close}
+            backdrop-props)
+     (into [:div.modal-window
+            (merge {:class "settings-window"
+                    :on-click #(.stopPropagation %)}
+                   window-props)]
+           children)]
+    (finally
+      (.removeEventListener js/window "keyup" handle-keyup))))
+
+(defn generic-modal
+  [{:keys [is-open?] :as props} & children]
+  (when is-open?
+    [modal-inner props children]))
+
+  (defn modal-root []
+  (let [active-modal @(re-frame/subscribe [:ui/active-modal])]
+    (when active-modal
+      (let [{:keys [id props]} active-modal
+            _ (log/error active-modal)
+            close-fn           #(re-frame/dispatch [:ui/close-modal])
+            TargetComponent    (modal-component id)]
+        [generic-modal
+         {:is-open?       true
+          :on-close       close-fn
+          :backdrop-props (:backdrop-props props)
+          :window-props   (:window-props props)}
+         [TargetComponent props]]))))
+
+(re-frame/reg-event-db
+ :ui/open-popover
+ (fn [db [_ id props]]
+   (assoc db :ui/active-popover {:id id :props props})))
+
+(re-frame/reg-event-db
+ :ui/close-popover
+ (fn [db _]
+   (dissoc db :ui/active-popover)))
+
+(re-frame/reg-sub
+ :ui/active-popover
+ (fn [db _]
+   (:ui/active-popover db)))
+
+#_(defn popover-root []
+  (let [active-popover @(re-frame/subscribe [:ui/active-popover])]
+    (when active-popover
+      (let [{:keys [id props]} active-popover
+            _ (js/console.error props)
+            _ (log/error props)
+            {:keys [x y width height] :or {width 320 height 380}} props
+            close-fn #(re-frame/dispatch [:ui/close-popover])
+            Target   (popover-component id)
+            render-x (if (> (+ x width) js/window.innerWidth) (- x width) x)
+            render-y (if (> (+ y height) js/window.innerHeight) (- y height) y)]
+        [:<>
+         [:div.popover-backdrop
+          {:style {:position "fixed" :top 0 :left 0 :right 0 :bottom 0 :z-index 11999}
+           :on-click close-fn
+           :on-context-menu (fn [e] (.preventDefault e) (close-fn))}]
+         [:div.popover-container
+          {:style {:left (str render-x "px")
+                   :top  (str render-y "px")
+                   :position "fixed"
+                   :z-index 12000}}
+          [Target (assoc props :close-fn close-fn)]]]))))
+
+(defn popover-root []
+  (let [active-popover @(re-frame/subscribe [:ui/active-popover])]
+    (when active-popover
+      (let [{:keys [id props]} active-popover
+            ;; Ensure props is a map
+            props    (if (map? props) props (js->clj props :keywordize-keys true))
+            {:keys [x y width height backdrop?]
+             :or {width 320 height 380 backdrop? true}} props
+            close-fn #(re-frame/dispatch [:ui/close-popover])
+            Target   (popover-component id)
+            win-w js/window.innerWidth
+            win-h js/window.innerHeight
+            render-x (max 10 (if (> (+ x width) win-w) (- x width) x))
+            render-y (max 10 (if (> (+ y height) win-h) (- y height) y))]
+        [:<>
+         (when backdrop?
+           [:div.popover-backdrop
+            {:style {:position "fixed" :top 0 :left 0 :right 0 :bottom 0 :z-index 11999}
+             :on-click close-fn
+             :on-context-menu (fn [e] (.preventDefault e) (close-fn))}])
+         [:div.popover-container
+          {:style {:left (str render-x "px")
+                   :top  (str render-y "px")
+                   :position "fixed"
+                   :z-index 12000}}
+          [Target (assoc props :close-fn close-fn)]]]))))
+
+
+
+
+
 (defn satellite-overlay [child-component]
   (let [picker-state @(re-frame/subscribe [:msg/active-reaction-picker])]
     (when picker-state
-      (let [{:keys [room-id msg-id x y]} picker-state
+      (let [{:keys [room-id event-or-transaction-id x y]} picker-state
             width  320
             height 380
             render-x (if (> (+ x width) js/window.innerWidth) (- x width) x)
             render-y (if (> (+ y height) js/window.innerHeight) (- y height) y)]
         [:div.satellite-overlay
          {:style {:left (str render-x "px")
-                  :top (str render-y "px")}}
+                  :top (str render-y "px")
+                  :position "fixed"
+                  :z-index 1000}}
          [:div.satellite-content
           [child-component
-           {:room-id room-id
-            :msg-id msg-id
-            :on-close #(re-frame/dispatch [:ui/close-satellite])}]]]))))
+           {:on-close #(re-frame/dispatch [:msg/close-reaction-picker])
+            :on-insert-native
+            (fn [unicode-char]
+              (re-frame/dispatch [:sdk/toggle-reaction room-id  event-or-transaction-id unicode-char])
+              (re-frame/dispatch [:msg/close-reaction-picker]))
+             :on-insert-emoji
+            (fn [shortcode url]
+              (re-frame/dispatch [:sdk/toggle-reaction room-id event-or-transaction-id  url])
+              (re-frame/dispatch [:msg/close-reaction-picker]))
+            :on-send-sticker
+            (fn [& _]
+              (log/warn "Cannot send stickers as a reaction!"))}]]]))))
 
 (defn global-reaction-picker []
   (let [picker-state @(re-frame/subscribe [:msg/active-reaction-picker])]
