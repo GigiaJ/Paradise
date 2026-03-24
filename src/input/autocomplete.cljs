@@ -12,7 +12,7 @@
 
 (re-frame/reg-sub
  :mention/filtered-users
- :<- [:rooms/active-room-members]
+ :<- [:room/members-map]
  :<- [:suggestion/state]
  (fn [[members state] _]
    (let [_ (log/debug members)
@@ -159,7 +159,8 @@
 (defn suggestion-menu []
   (let [{:keys [active? type rect index] :as state} @(re-frame/subscribe [:suggestion/state])
         emojis  @(re-frame/subscribe [:emoji/filtered-suggestions])
-        members @(re-frame/subscribe [:mention/filtered-users])]
+        members @(re-frame/subscribe [:mention/filtered-users])
+        tr              @(re-frame/subscribe [:i18n/tr])]
     (when (and active? rect)
       (let [is-emoji? (= type :emoji)
             items     (if is-emoji? emojis members)
@@ -173,7 +174,7 @@
                           (str (+ (:top rect) (:height rect) 5) "px"))
                   :left (str (:left rect) "px")}}
          (if (empty? items)
-           [:div.suggestion-no-results "No matches found"]
+           [:div.suggestion-no-results (tr [:composer.suggestions/no-results])]
            (doall
             (map-indexed
              (fn [idx item]
