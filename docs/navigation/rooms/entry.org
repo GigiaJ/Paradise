@@ -417,7 +417,9 @@ important.
 (defn room-item [{:keys [id name indent is-space? is-closed? is-call? has-call?
                         active-room unread? highlight? notif-count
                         call-participants avatar-url space-id active-filter open-menu-fn]}]
-  (let [active? (= id active-room)]
+  (let [active? (= id active-room)
+        tr      @(re-frame/subscribe [:i18n/tr])
+        ]
     [:div.room-container
      (if is-space?
        [:div.room-drawer-header
