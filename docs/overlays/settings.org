@@ -838,7 +838,15 @@ Inside the modal this is our sidebar options.
 #+end_src
 
 
+***** Register to Multi-method
+
+
+Now we just register the modal to our modal registry so it is usable globally.
+#+begin_src clojurescript :tangle ../../src/overlays/settings.cljs
+(defmethod modal-component :settings [_]
+  settings-content)
 #+end_src
+
 
 
 **** Dumping CSS
