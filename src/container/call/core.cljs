@@ -4,7 +4,7 @@
    [re-frame.db :as rf-db]
    [container.call.call-container :refer [primary-iframe-ref backup-iframe-ref]]
    [container.call.call-view :as call-view]
-   ["generated-compat" :as sdk]
+   ["ffi-bindings" :as sdk]
    [taoensso.timbre :as log]
    [clojure.string :as str]))
 
