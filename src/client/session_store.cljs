@@ -1,7 +1,7 @@
 (ns client.session-store
 (:require [promesa.core :as p]
           [taoensso.timbre :as log]
-          ["generated-compat" :as sdk]))
+          ["ffi-bindings" :as sdk]))
 
 (def ^:private storage-key "mx_session_v3")
 
