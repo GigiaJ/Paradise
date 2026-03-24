@@ -26,8 +26,8 @@ Lightbox (or image previewer) is how we intend to provide a nice way to interact
 **** Lightbox Component + CSS
 
 
-In advance, apologies for this monstrosity. Rushing a bit to get these done so I'm just writing them out and moving
-on. I do plan to come back and break these bits apart better.
+This is still a blob of math and such, but it does now rely on our global modal handling.
+So we define the component contents and then register in the modal multi-method.
 
 
 ***** Component
