@@ -6,6 +6,7 @@
    [container.call.call-view :refer [call-view]]
    [container.timeline.base :refer [timeline]]
    [container.members :refer [member-list]]
+   [utils.svg :as icons]
    [taoensso.timbre :as log]
    [promesa.core :as p]
    [reagent.core :as r]
@@ -46,7 +47,9 @@
 (defn container []
   (let [main-focus    @(re-frame/subscribe [:container/main-focus])
         side-panel    @(re-frame/subscribe [:container/side-panel])
-        active-room   @(re-frame/subscribe [:rooms/active-id])]
+        active-room   @(re-frame/subscribe [:rooms/active-id])
+        tr            @(re-frame/subscribe [:i18n/tr])
+        ]
     [:div.room-layout
      {:style {:display "grid"
               :flex "1"
@@ -76,15 +79,16 @@
                [:h3.sidebar-title
                 {:style {:font-size "0.9rem" :text-transform "uppercase" :letter-spacing "0.05rem"}}
                 (case panel
-                  :members "Members"
-                  :threads "Threads"
-                  :search  "Search"
-                  :pins    "Pinned Messages"
-                  :timeline "")]
+                  :members  (tr [:container.panels/members])
+                  :threads  (tr [:container.panels/threads])
+                  :search   (tr [:container.panels/search])
+                  :pins     (tr [:container.panels/pins])
+                  :timeline ""
+                  )]
                [:button.sidebar-close
                 {:style {:background "transparent" :border "none" :color "var(--text-secondary)" :cursor "pointer"}
                  :on-click #(re-frame/dispatch [:container/set-side-panel nil])}
-                "✕"]])
+                [icons/exit]]])
 
             [:div.sidebar-content
              {:style {:flex 1 :overflow "hidden"}}
