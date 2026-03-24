@@ -1,4 +1,3 @@
-
 (ns container.members
   (:require
    [re-frame.core :as re-frame]
@@ -211,145 +210,87 @@ homeserver (.-homeserverUrl session)]
     :on-click #(re-frame/dispatch [:room/set-member-filter-type room-id type])}
    (str label " (" (or count 0) ")")])
 
-(defn build-member-actions [{:keys [user-id display-name]} active-room]
-  [{:id "view-profile" :label "View Profile"
+(defn build-member-actions [tr {:keys [user-id display-name]} active-room]
+  [{:id "view-profile"
+    :label (tr [:container.member-actions/view-profile])
     :action #(js/console.log "View profile for:" user-id)}
-   {:id "mention" :label (str "Mention @" display-name)
+   {:id "mention"
+    :label (tr [:container.member-actions/mention] [display-name])
     :action #(js/console.log "Mention:" user-id)}
-   {:id "message" :label "Direct Message"
+   {:id "message"
+    :label (tr [:container.member-actions/message])
     :action #(js/console.log "DM:" user-id)}
-   {:id "kick" :label "Kick Member" :class-name "text-danger"
+   {:id "kick"
+    :label (tr [:container.member-actions/kick])
+    :class-name "text-danger"
     :action #(js/console.log "Kick:" user-id)}])
 
-
-(defn profile-popover-trigger [member custom-tags active-room & children]
+(defn profile-popover-trigger [member custom-tags active-room pos & children]
   (r/with-let [!hover-timer (atom nil)
                clear-timer! #(when @!hover-timer
                                (js/clearTimeout @!hover-timer)
                                (reset! !hover-timer nil))]
-    (into [:div
-           {:style {:display "inline-block" :cursor "pointer"}
-            :on-mouse-enter (fn [e]
-                              (let [rect (.getBoundingClientRect (.-currentTarget e))
-                                    px (+ (.-right rect) 15)
-                                    py (.-top rect)]
+    (let [tr @(re-frame/subscribe [:i18n/tr])]
+      (into [:div
+             {:style {:display "inline-block" :cursor "pointer"}
+              :on-mouse-enter (fn [e]
+                                (let [rect (.getBoundingClientRect (.-currentTarget e))
+                                      px (if (= pos :left)
+                                           (- (.-left rect) 265)
+                                           (+ (.-right rect) 15))
+                                      py (.-top rect)]
+                                  (clear-timer!)
+                                  (reset! !hover-timer
+                                          (js/setTimeout
+                                           #(re-frame/dispatch
+                                             [:ui/open-popover :profile-preview
+                                              {:x         px
+                                               :y         py
+                                               :width     265
+                                               :height    150
+                                               :backdrop? false
+                                               :member    member
+                                               :tags      custom-tags}])
+                                           400))))
+              :on-mouse-leave (fn []
                                 (clear-timer!)
-                                (reset! !hover-timer
-                                        (js/setTimeout
-                                         #(re-frame/dispatch [:profile-preview/open
-                                                              {:x px :y py :member member :tags custom-tags}])
-                                         400))))
-            :on-mouse-leave (fn []
-                              (clear-timer!)
-                              (re-frame/dispatch [:profile-preview/close]))
-            :on-context-menu (fn [e]
-                               (.preventDefault e)
-                               (.stopPropagation e)
-                               (clear-timer!)
-                               (re-frame/dispatch [:profile-preview/close])
-                               (re-frame/dispatch
-                                [:context-menu/open
-                                 {:x (.-clientX e)
-                                  :y (.-clientY e)
-                                  :items (build-member-actions member active-room)}]))}]
-          children)))
+                                (re-frame/dispatch [:ui/close-popover]))
+              :on-context-menu (fn [e]
+                                 (.preventDefault e)
+                                 (.stopPropagation e)
+                                 (clear-timer!)
+                                 (re-frame/dispatch [:ui/close-popover])
+                                 (re-frame/dispatch
+                                  [:context-menu/open
+                                   {:x (.-clientX e)
+                                    :y (.-clientY e)
+                                    :items (build-member-actions tr member active-room)}]))}]
+            children))))
 
 
 (defn member-item [m custom-tags active-room]
-  (r/with-let [!hover-timer (atom nil)
-               clear-timer! #(when @!hover-timer
-                               (js/clearTimeout @!hover-timer)
-                               (reset! !hover-timer nil))]
-    (let [pl         (:power-level m)
-          tag-data   (get custom-tags (keyword (str pl)))
-          role-name  (:name tag-data)
-          role-color (or (:color tag-data) "var(--text-primary)")
-          icon-url   (some-> tag-data :icon :key mxc->url)]
-      [:div.member-item
-       {:on-mouse-enter (fn [e]
-                          (let [rect (.getBoundingClientRect (.-currentTarget e))
-                                px (- (.-left rect) 260)
-                                py (.-top rect)]
-                            (clear-timer!)
-                            (reset! !hover-timer
-                                    (js/setTimeout
-                                     #(re-frame/dispatch [:profile-preview/open
-                                                          {:x px :y py :member m :tags custom-tags}])
-                                     400))))
-        :on-mouse-leave (fn []
-                          (clear-timer!)
-                          (re-frame/dispatch [:profile-preview/close]))
-        :on-context-menu (fn [e]
-                           (.preventDefault e)
-                           (.stopPropagation e)
-                           (clear-timer!)
-                           (re-frame/dispatch [:profile-preview/close])
-                           (re-frame/dispatch
-                            [:context-menu/open
-                             {:x (.-clientX e)
-                              :y (.-clientY e)
-                              :items (build-member-actions m active-room)}]))}
-       [avatar {:id (:user-id m) :name (:display-name m) :url (:avatar-url m) :size 32}]
-       [:div.member-item-info
-        [:div.member-item-name-row
-         [:span.member-item-name {:style {:color role-color}} (:display-name m)]
-         (when role-name
-           [:div.member-item-role-badge {:style {:color role-color :border (str "1px solid " role-color)}}
-            (when icon-url
-              [:img.member-item-role-icon {:src icon-url}])
-            role-name])]
-        [:span.member-item-user-id (:user-id m)]]])))
-
-
-
-(re-frame/reg-event-db
- :profile-preview/open
- (fn [db [_ {:keys [x y member tags]}]]
-   (assoc db :profile-preview {:open? true :x x :y y :member member :tags tags})))
-
-(re-frame/reg-event-db
- :profile-preview/close
- (fn [db _]
-   (assoc db :profile-preview {:open? false})))
-
-(re-frame/reg-sub
- :profile-preview/state
- (fn [db _]
-   (:profile-preview db {:open? false})))
-
-
-(defn global-profile-preview []
-  (let [{:keys [open? x y member tags]} @(re-frame/subscribe [:profile-preview/state])]
-    (when (and open? member)
-      (let [pl         (:power-level member)
-            tag-data   (get tags (keyword (str pl)))
-            role-name  (:name tag-data)
-            role-color (or (:color tag-data) "var(--text-primary)")
-            icon-url   (some-> tag-data :icon :key mxc->url)]
-        [:div.profile-preview-card
-         {:style {:left (max 10 x) :top y}}
-         [:div.profile-preview-cover]
-         [:div.profile-preview-content
-          [:div.profile-preview-avatar-wrap
-           [avatar {:id (:user-id member)
-                    :name (:display-name member)
-                    :url (mxc->url (:avatar-url member))
-                    :size 64}]]
-          [:div.profile-preview-id-block
-           [:span.profile-preview-name {:style {:color role-color}}
-            (:display-name member)]
-           [:span.profile-preview-id
-            (:user-id member)]]
-          (when role-name
-            [:div.profile-preview-role-row
-             (when icon-url
-               [:img.member-item-role-icon {:src icon-url}])
-             [:span.profile-preview-role-text {:style {:color role-color}}
-              role-name]])]]))))
+  (let [pl         (:power-level m)
+        tag-data   (get custom-tags (keyword (str pl)))
+        role-name  (:name tag-data)
+        role-color (or (:color tag-data) "var(--text-primary)")
+        icon-url   (some-> tag-data :icon :key mxc->url)]
+    [profile-popover-trigger m custom-tags active-room :left
+     [:div.member-item
+      [avatar {:id (:user-id m) :name (:display-name m) :url (:avatar-url m) :size 32}]
+      [:div.member-item-info
+       [:div.member-item-name-row
+        [:span.member-item-name {:style {:color role-color}} (:display-name m)]
+        (when role-name
+          [:div.member-item-role-badge {:style {:color role-color :border (str "1px solid " role-color)}}
+           (when icon-url
+             [:img.member-item-role-icon {:src icon-url}])
+           role-name])]
+       [:span.member-item-user-id (:user-id m)]]]]))
 
 
 (defn member-list []
-  (let [active-room @(re-frame/subscribe [:rooms/active-id])
+  (let [tr           @(re-frame/subscribe [:i18n/tr])
+        active-room @(re-frame/subscribe [:rooms/active-id])
         custom-tags @(re-frame/subscribe [:room/power-level-tags active-room])
         query       @(re-frame/subscribe [:room/member-filter-query active-room])
         filter-type @(re-frame/subscribe [:room/member-filter-type active-room])
@@ -371,7 +312,7 @@ homeserver (.-homeserverUrl session)]
         [icons/search {:width "14px" :height "14px"}]]
        [:input.member-search-input
         {:type "text"
-         :placeholder "Search members..."
+         :placeholder (tr [:container.members/search-placeholder])
          :value query
          :on-change #(re-frame/dispatch [:room/set-member-filter active-room (.. % -target -value)])}]
        (when-not (str/blank? query)
@@ -383,23 +324,25 @@ homeserver (.-homeserverUrl session)]
        [:select.member-dropdown
         {:value filter-type
          :on-change #(re-frame/dispatch [:room/set-member-filter-type active-room (.. % -target -value)])}
-        [:option {:value "Join"}   (str "Joined (" (get counts "Join" 0) ")")]
-        [:option {:value "Invite"} (str "Invited (" (get counts "Invite" 0) ")")]
-        [:option {:value "Leave"}  (str "Left (" (get counts "Leave" 0) ")")]
-        [:option {:value "Ban"}    (str "Banned (" (get counts "Ban" 0) ")")]]
+        [:option {:value "Join"}   (tr [:container.members.filter/joined] [(get counts "Join" 0)])]
+        [:option {:value "Invite"} (tr [:container.members.filter/invited] [(get counts "Invite" 0)])]
+        [:option {:value "Leave"}  (tr [:container.members.filter/left] [(get counts "Leave" 0)])]
+        [:option {:value "Ban"}    (tr [:container.members.filter/banned] [(get counts "Ban" 0)])]
+        ]
 
        [:select.member-dropdown
         {:value (name sort-type)
          :on-change #(re-frame/dispatch [:room/set-member-sort active-room (keyword (.. % -target -value))])}
-        [:option {:value "power-level"} "Sort: Role"]
-        [:option {:value "alphabetical"} "Sort: Name"]
-        [:option {:value "latest"} "Sort: Latest"]]]]
+        [:option {:value "power-level"}  (tr [:container.members.sort/role])]
+        [:option {:value "alphabetical"} (tr [:container.members.sort/name])]
+        [:option {:value "latest"}       (tr [:container.members.sort/latest])]
+        ]]]
 
      (if loading?
-       [:div.member-list-loading "Loading members..."]
+       [:div.member-list-loading (tr [:container.members/loading])]
        [:div.member-list-scroll
         (if (empty? flat-members)
-          [:div.member-list-empty "No members found"]
+          [:div.member-list-empty (tr [:container.members/no-results])]
           [:> GroupedVirtuoso
            {:groupCounts (clj->js group-counts)
             :style {:height "100%" :width "100%"}
