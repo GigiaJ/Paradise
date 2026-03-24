@@ -1,0 +1,149 @@
+
+** Profiles
+
+
+**** Preface
+
+Profiles often are a popover when the user hovers them, but they often expect
+that when clicking on a user that they see more. Thus they are an overlay in this
+aspect.
+
+
+**** Imports
+
+
+#+begin_src clojurescript :tangle ../../src/overlays/profiles.cljs
+(ns overlays.profiles
+  (:require
+   [overlays.base :refer [popover-component]]
+   [utils.global-ui :refer [avatar]]
+   ))
+#+end_src
+
+
+
+**** Modal
+
+
+#+begin_src clojurescript :tangle ../../src/overlays/profiles.cljs
+
+#+end_src
+
+
+
+
+**** Popover
+
+
+***** Component
+
+
+#+begin_src clojurescript :tangle ../../src/overlays/profiles.cljs
+(defn profile-preview-content [{:keys [member tags]}]
+  (let [pl         (:power-level member)
+        tag-data   (get tags (keyword (str pl)))
+        role-name  (:name tag-data)
+        role-color (or (:color tag-data) "var(--text-primary)")
+        icon-url   (some-> tag-data :icon :key mxc->url)]
+    [:div.profile-preview-card
+     [:div.profile-preview-cover]
+     [:div.profile-preview-content
+      [:div.profile-preview-avatar-wrap
+       [avatar {:id (:user-id member)
+                :name (:display-name member)
+                :url (:avatar-url member)
+                :size 64}]]
+      [:div.profile-preview-id-block
+       [:span.profile-preview-name {:style {:color role-color}}
+        (:display-name member)]
+       [:span.profile-preview-id
+        (:user-id member)]]
+      (when role-name
+        [:div.profile-preview-role-row
+         (when icon-url
+           [:img.member-item-role-icon {:src icon-url}])
+         [:span.profile-preview-role-text {:style {:color role-color}}
+          role-name]])]]))
+
+
+(defmethod popover-component :profile-preview [_]
+  profile-preview-content)
+#+end_src
+
+
+***** CSS
+
+
+#+begin_src css :tangle ../../css/profiles.css
+.profile-preview-card {
+      position: fixed;
+      z-index: 9998;
+      pointer-events: none;
+      width: 240px;
+      background: var(--surface-1, var(--bg-color, #1e1e24));
+      border: 1px solid var(--border-color, #333);
+      border-radius: 8px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+      overflow: hidden;
+  }
+
+  .profile-preview-cover {
+      height: 60px;
+      background: var(--surface-3, #2a2a35);
+  }
+
+  .profile-preview-content {
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+}
+
+.profile-preview-avatar-wrap {
+  margin-top: -36px;
+  margin-bottom: 4px;
+  background: var(--surface-1, var(--bg-color, #1e1e24));
+  border: 4px solid var(--surface-1, var(--bg-color, #1e1e24));
+  border-radius: 12px;
+  width: fit-content;
+  background: var(--surface-1);
+}
+
+.profile-preview-id-block {
+  display: flex;
+  flex-direction: column;
+}
+
+.profile-preview-name {
+  font-weight: bold;
+  font-size: 1.1rem;
+}
+
+.profile-preview-id {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+.profile-preview-role-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.profile-preview-role-text {
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.text-danger {
+  color: #ff4d4d !important;
+}
+
+.context-menu-item.text-danger:hover {
+  background: rgba(255, 77, 77, 0.1) !important;
+}
+
+#+end_src
+
+
