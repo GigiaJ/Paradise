@@ -7,7 +7,7 @@
             ["react-virtuoso" :refer [Virtuoso]]
             [reagent.core :as r]
             [reagent.dom.client :as rdom]
-            [utils.helpers :refer [mxc->url sanitize-custom-html format-divider-date format-readers join-names]]
+            [utils.helpers :refer [mxc->url sanitize-custom-html format-divider-date format-readers join-names get-status-string]]
             [utils.global-ui :refer [avatar long-press-props swipe-to-action-wrapper]]
             [utils.svg :as icons]
             [container.timeline.item :refer [event-tile wrap-item]]
@@ -15,7 +15,7 @@
             [input.base :refer [message-input inline-editor]]
             [navigation.rooms.room-summary :refer [build-room-summary]]
             [client.diff-handler :refer [apply-matrix-diffs]]
-            ["generated-compat" :as sdk :refer [RoomMessageEventContentWithoutRelation MessageType EditedContent TimelineConfiguration]]
+            ["ffi-bindings" :as sdk :refer [RoomMessageEventContentWithoutRelation MessageType EditedContent TimelineConfiguration]]
             ))
 
 (defonce !timeline-queues (atom {}))
@@ -89,16 +89,16 @@
 
 
 
-typing-listener #js {:call (fn [user-ids]
+                     typing-listener #js {:call (fn [user-ids]
                                      (log/error "TYPING UPDATE:" user-ids)
-                                     (re-frame/dispatch [:sdk/update-typing-users room-id user-ids]))}
-        typing-handle-1 (.subscribeToTypingNotifications room typing-listener)
-        _ (log/error "First handle registered:" typing-handle-1)
-        _ (js/setTimeout
-            (fn []
-              (log/error "Registering second 'kick' subscriber for room:" room-id)
-              (.subscribeToTypingNotifications room typing-listener))
-            5000)
+                                                  (re-frame/dispatch [:sdk/update-typing-users room-id user-ids]))}
+                     typing-handle-1 (.subscribeToTypingNotifications room typing-listener)
+                     _ (log/error "First handle registered:" typing-handle-1)
+                     _ (js/setTimeout
+                        (fn []
+                          (log/error "Registering second 'kick' subscriber for room:" room-id)
+                          (.subscribeToTypingNotifications room typing-listener))
+                        5000)
 
 
 
@@ -167,11 +167,29 @@ typing-listener #js {:call (fn [user-ids]
          (assoc-in [:timeline/loading-more? room-id] false)
          ))))
 
+(defn enrich-timeline-items [items]
+  (loop [remaining items
+         processed []
+         last-item nil]
+    (if (empty? remaining)
+      processed
+      (let [curr         (first remaining)
+            curr-is-msg? (= (:content-tag curr) "MsgLike")
+            last-is-msg? (= (:content-tag last-item) "MsgLike")
+            can-merge? (and curr-is-msg?
+                            last-is-msg?
+                            (= (:sender-id curr) (:sender-id last-item))
+                            (< (- (:ts curr) (:ts last-item)) 300000))
+            new-item (assoc curr :merge-with-prev? can-merge?)]
+        (recur (rest remaining)
+               (conj processed new-item)
+               (if curr-is-msg? new-item nil))))))
+
 (re-frame/reg-sub
  :timeline/current-events
  (fn [db _]
-   (let [active-room (:active-room-id db)
-         raw-events  (get-in db [:timeline active-room] [])
+   (let [active-room   (:active-room-id db)
+         raw-events    (get-in db [:timeline active-room] [])
          sorted-events (->> raw-events
                             (reduce (fn [acc e]
                                       (let [id-key   (or (:internal-id e) (:id e))
@@ -184,19 +202,7 @@ typing-listener #js {:call (fn [user-ids]
                                     {})
                             (vals)
                             (sort-by :ts))]
-     (first
-      (reduce
-       (fn [[acc prev-event] curr-event]
-         (let [merge? (and prev-event
-                           (= (:type curr-event) :event)
-                           (= (:type prev-event) :event)
-                           (= (:sender-id curr-event) (:sender-id prev-event))
-                           (< (- (:ts curr-event) (:ts prev-event)) 300000))]
-           [(conj acc (assoc curr-event :merge-with-prev? merge?)) curr-event]))
-       [[] nil]
-       sorted-events)))))
-
-
+     (enrich-timeline-items sorted-events))))
 
 (re-frame/reg-sub
  :timeline/latest-readers
@@ -234,31 +240,6 @@ typing-listener #js {:call (fn [user-ids]
      ]))
 
 
-
-(re-frame/reg-event-db
- :sdk/clear-stale-typing
- (fn [db [_ room-id]]
-   (let [data (get-in db [:typing-users room-id])]
-     (if (and data (> (- (js/Date.now) (:last-update data)) 6000))
-       (update db :typing-users dissoc room-id)
-       db))))
-
-
-
-(re-frame/reg-event-db
- :sdk/update-typing-users
- (fn [db [_ room-id user-ids]]
-   (let [users (js->clj user-ids)]
-     (if (empty? users)
-       (dissoc-in db [:typing-users room-id])
-       (do
-         (js/setTimeout
-          #(re-frame/dispatch [:sdk/clear-stale-typing room-id])
-          6500)
-         (assoc-in db [:typing-users room-id]
-                   {:users users
-                    :last-update (js/Date.now)}))))))
-
 (re-frame/reg-event-db
  :sdk/clear-stale-typing
  (fn [db [_ room-id]]
@@ -292,42 +273,45 @@ typing-listener #js {:call (fn [user-ids]
 
 
 (defn status-indicator [active-room]
-  (let [typing-info @(re-frame/subscribe [:room/typing-users active-room])
-        reader-ids  @(re-frame/subscribe [:timeline/latest-readers])
-        members-map @(re-frame/subscribe [:room/members-map active-room])
-        profile     @(re-frame/subscribe [:sdk/profile])
-        my-id       (:user-id profile)
+  (let [tr            @(re-frame/subscribe [:i18n/tr])
+        typing-info   @(re-frame/subscribe [:room/typing-users active-room])
+        reader-ids    @(re-frame/subscribe [:timeline/latest-readers])
+        members-map   @(re-frame/subscribe [:room/members-map active-room])
+        profile       @(re-frame/subscribe [:sdk/profile])
+        my-id         (:user-id profile)
         typing-ids    (if (map? typing-info) (:users typing-info) typing-info)
         others-typing (filterv #(not= % my-id) (or typing-ids []))
-        has-typists?  (not-empty others-typing)
-        has-readers?  (not-empty reader-ids)
-        is-visible?   (or has-typists? has-readers?)
-        ]
-      [:div.followers-indicator
-       {:class (when is-visible? "is-visible")
-        :key (str active-room "-status-bar")}
-       (cond
-         has-typists?
-         [:div.status-content {:key "typing"}
-          [icons/typing-dots {:style {:color "var(--cp-text-muted)"}}]
-          [:span.text
-           (str (join-names (map #(or (:display-name (get members-map %)) %) others-typing))
-                " is typing...")]]
-         has-readers?
-         [:div.status-content {:key "readers"}
-          [icons/double-check {:width "14px" :height "14px"}]
-          [:span.text (format-readers (map #(or (:display-name (get members-map %)) %) reader-ids))]]
-         :else
-         [:span.text {:key "empty"} "\u00A0"])]))
+        get-name      #(or (:display-name (get members-map %)) %)
+        typing-names  (map get-name others-typing)
+        reader-names  (map get-name reader-ids)
 
-(defn virtualized-timeline [initial-events initial-room-id]
+        has-typists?  (not-empty typing-names)
+        has-readers?  (not-empty reader-names)
+        is-visible?   (or has-typists? has-readers?)]
+    [:div.followers-indicator
+     {:class (when is-visible? "is-visible")
+      :key (str active-room "-status-bar")}
+     (cond
+       has-typists?
+       [:div.status-content {:key "typing"}
+        [icons/typing-dots {:style {:color "var(--cp-text-muted)"}}]
+        [:span.text (get-status-string tr :typing typing-names)]]
+       has-readers?
+       [:div.status-content {:key "readers"}
+        [icons/double-check {:width "14px" :height "14px"}]
+        [:span.text (get-status-string tr :reading reader-names)]]
+       :else
+       [:span.text {:key "empty"} "\u00A0"])]))
+
+
+(defn virtualized-timeline [tr initial-events initial-room-id]
   (r/with-let [!start-index    (r/atom 1000000)
                !prev-first-id  (r/atom nil)
                !prev-count     (r/atom 0)
                !initial-idx    (r/atom nil)
                !at-bottom?     (r/atom true)
                !virtuoso-ref   (r/atom nil)]
-    (fn [events room-id]
+    (fn [tr events room-id]
       (let [event-array (to-array events)
             cnt         (count event-array)
             first-id    (some-> (aget event-array 0) :id)
@@ -351,7 +335,7 @@ typing-listener #js {:call (fn [user-ids]
            [:button.jump-to-bottom
             {:on-click #(.scrollToIndex @!virtuoso-ref #js {:index (dec (+ @!start-index cnt))
                                                             :behavior "smooth"})}
-            "Jump to Present"])
+            (tr [:container.timeline/jump-to-bottom])])
 
          [:> Virtuoso
           {:key room-id
@@ -377,7 +361,9 @@ typing-listener #js {:call (fn [user-ids]
   (let [active-id    @(re-frame/subscribe [:rooms/active-id])
         room-meta    @(re-frame/subscribe [:rooms/active-metadata])
         events       @(re-frame/subscribe [:timeline/current-events])
-        display-name (when active-id (or (when room-meta (.-name room-meta)) active-id))]
+        tr           @(re-frame/subscribe [:i18n/tr])
+        display-name (when active-id (or (when room-meta (.-name room-meta)) active-id))
+       ]
     [:div.timeline-container
      {:style {:display "flex"
               :flex-direction "column"
@@ -392,7 +378,7 @@ typing-listener #js {:call (fn [user-ids]
      (if-not active-id
        [:div.timeline-empty "Select a room to start chatting."]
        [:<>
-        [virtualized-timeline events active-id]
+        [virtualized-timeline tr events active-id]
         [message-input]
         [status-indicator active-id]
         ])]))
