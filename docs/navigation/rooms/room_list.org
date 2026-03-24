@@ -1107,12 +1107,12 @@ component.
     padding: 12px;
 }
 
-.room-header {
+.room-list-header {
     display: flex;
     align-items: center;
     padding: 0 16px;
     height: 48px;
-    border-bottom: 1px solid #1e1f22;
+    /* border-bottom: 1px solid #1e1f22; */
     background: #313338;
     min-width: 0;
 }
