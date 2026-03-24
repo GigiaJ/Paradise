@@ -756,24 +756,26 @@ You want to ensure the language options are easy to find for the user.
 
 #+begin_src clojurescript :tangle ../../src/overlays/settings.cljs
 (defn about-tab []
-  (let [version  @(re-frame/subscribe [:app/version])
+  (let [tr       @(re-frame/subscribe [:i18n/tr])
+        locale   @(re-frame/subscribe [:i18n/locale])
+        version  @(re-frame/subscribe [:app/version])
         app-name (:app-name config "Matrix Client")]
     [:div.settings-tab-content
-     [:h2.settings-heading "About"]
+     [:h2.settings-heading (tr [:settings.about/title])]
      [:div.settings-section
       [:div.about-header
        [:h3 app-name]
        [:div.version-badge (str "v" version)]]
       [:p.verification-description
-       "A lightweight, modern Matrix client built with ClojureScript and Re-frame utilizing the Rust-SDK through WASM. Somewhat documented using org-mode."]
+       (tr [:settings.about/description] [app-name])]
       [:div.settings-spacer]
-      [:h3.settings-subheading "Updates"]
+      [:h3.settings-subheading (tr [:settings.about/updates-title])]
       [:p.verification-description
-       "The app automatically checks for updates in the background, but you can also check manually."]
-
+       (tr [:settings.about/updates-desc])]
       [:button.form-button
        {:on-click #(re-frame/dispatch [:app/poll-version true])}
-       "Check for Updates"]]]))
+       (tr [:settings.about/check-updates])]]]))
+
 #+end_src
 
 
