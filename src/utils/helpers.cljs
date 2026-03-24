@@ -5,7 +5,8 @@
    [hickory.core :as h]
    [hickory.render :as hr]
    [clojure.walk :as walk]
-   [taoensso.timbre :as log]))
+   [taoensso.timbre :as log]
+   ))
 
 (defn mxc->url
   "Converts an mxc:// URI to a full HTTP(S) URL.
@@ -186,16 +187,19 @@
                parts))))))
 
 
-(defn format-divider-date [ts]
+(defn format-divider-date [tr ts]
   (let [date (js/Date. ts)
         today (js/Date.)
         is-today (= (.toDateString date) (.toDateString today))
         yesterday (doto (js/Date.) (.setDate (- (.getDate today) 1)))
         is-yesterday (= (.toDateString date) (.toDateString yesterday))]
     (cond
-      is-today "Today"
-      is-yesterday "Yesterday"
-      :else (.toLocaleDateString date js/undefined #js {:month "long" :day "numeric" :year "numeric"}))))
+      is-today (tr [:settings.language-time/today])
+      is-yesterday (tr [:settings.language-time/yesterday])
+      :else (.toLocaleDateString date js/undefined
+                                 #js {:month "long"
+                                      :day "numeric"
+                                      :year "numeric"}))))
 
 (defn format-time [ts]
   (when ts
@@ -225,6 +229,17 @@
                     " is following the conversation"
                     " are following")))))
 
+(defn get-status-string [tr type names]
+  (let [cnt (count names)
+        base-path (if (= type :typing)
+                    "container.timeline.status.typing"
+                    "container.timeline.status.reading")]
+    (case cnt
+      0 ""
+      1 (tr [(keyword base-path "one")] [(first names)])
+      2 (tr [(keyword base-path "two")] [(first names) (second names)])
+      3 (tr [(keyword base-path "three")] [(first names) (second names) (nth names 2)])
+      (tr [(keyword base-path "many")] [(first names) (second names) (- cnt 2)]))))
 
 
 (defn fetch-state-event [homeserver token room-id event-type state-key]
