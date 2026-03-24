@@ -1,0 +1,41 @@
+
+** Overlays
+
+**** Preface
+
+
+**** Imports
+
+#+begin_src clojurescript :tangle ../../src/overlays/base.cljs
+(ns overlays.base
+(:require))
+#+end_src
+
+
+
+**** Multi-method Modal
+
+To avoid a nasty set of circular dependencies we actually want to centrally register all the components in one space.
+This allows us to neatly create states and provide a single component to the main application to render.
+#+begin_src clojurescript :tangle ../../src/overlays/base.cljs
+(defmulti modal-component identity)
+
+(defmethod modal-component :default [modal-id]
+  (fn [_props]
+    [:div {:style {:padding "24px" :background "white" :color "black" :border-radius "8px"}}
+     [:p modal-id]]))
+#+end_src
+
+
+
+**** Multi-method Popover
+
+
+#+begin_src clojurescript :tangle ../../src/overlays/base.cljs
+(defmulti popover-component identity)
+
+(defmethod popover-component :default [popover-id]
+  (fn [_props]
+    [:div {:style {:background "red" :color "white" :padding "10px"}}
+      popover-id]))
+#+end_src
