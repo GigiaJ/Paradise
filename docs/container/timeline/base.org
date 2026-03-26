@@ -550,17 +550,19 @@ size is reached, but the behavior may be impacted by the performant issue
 mentioned above. Should be easily sorted, however.
 #+begin_src clojurescript :tangle ../../../src/container/timeline/base.cljs
 (defn virtualized-timeline [tr initial-events initial-room-id]
-  (r/with-let [!start-index    (r/atom 1000000)
-               !prev-first-id  (r/atom nil)
-               !prev-count     (r/atom 0)
-               !initial-idx    (r/atom nil)
-               !at-bottom?     (r/atom true)
-               !virtuoso-ref   (r/atom nil)]
+  (r/with-let [!start-index     (r/atom 1000000)
+               !prev-first-id   (r/atom nil)
+               !prev-count      (r/atom 0)
+               !initial-idx     (r/atom nil)
+               !at-bottom?      (r/atom true)
+               !virtuoso-ref    (r/atom nil)]
     (fn [tr events room-id]
-      (let [event-array (to-array events)
-            cnt         (count event-array)
-            first-id    (some-> (aget event-array 0) :id)
-            loading?    @(re-frame/subscribe [:timeline/loading-more? room-id])]
+      (let [event-array   (to-array events)
+            cnt           (count event-array)
+            first-id      (some-> (aget event-array 0) :id)
+            loading?      @(re-frame/subscribe [:timeline/loading-more? room-id])
+            jump-target   @(re-frame/subscribe [:timeline/jump-target-id room-id])
+            focus-mode?   @(re-frame/subscribe [:room/is-focused? room-id])]
 
         (when (and (nil? @!initial-idx) (pos? cnt))
           (reset! !initial-idx (dec (+ @!start-index cnt))))
