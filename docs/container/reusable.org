@@ -281,4 +281,92 @@ generic items. So we need to neatly wrap our item to match the shape expected.
        :asVirtual (fn [] nil)})
 #+end_src
 
+
+***** Message With Jump To
+
+Now we also can supply a reusable container for those events
+as often times these on-off events are useful to be used as a jump-to.
+
+#+begin_src clojurescript :tangle ../../src/container/reusable.cljs
+(defn message-preview-item [room-id event]
+  (let [tr @(re-frame/subscribe [:i18n/tr])]
+    [:div.message-preview-card
+     [event-tile event]
+     [:button.jump-btn
+      {:on-click #(re-frame/dispatch [:room/pretty-jump room-id (:id event)])}
+      (tr [:container.timeline/jump-to-message])]]))
+
 #+end_src
+
+
+***** Jump To CSS
+
+
+#+begin_src css :tangle ../../css/room-header.css
+
+.message-preview-card {
+    padding: 12px;
+    margin-bottom: 16px;
+    background: var(--surface-2);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    position: relative;
+    transition: border-color 0.2s ease;
+}
+
+.message-preview-card:hover {
+    border-color: var(--brand-primary-alpha);
+}
+
+.jump-btn {
+      margin-top: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--surface-3);
+      border: none;
+      padding: 6px 12px;
+      border-radius: 4px;
+      color: var(--text-primary);
+      cursor: pointer;
+      font-size: 0.85rem;
+      transition: background 0.2s ease;
+}
+
+.jump-btn:hover {
+      background: var(--surface-4);
+      color: var(--brand-primary);
+}
+
+
+
+.jump-btn:active {
+    transform: translateY(1px);
+}
+
+.jump-btn svg {
+    flex-shrink: 0;
+}
+
+.timeline-messages {
+    transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease;
+}
+
+.timeline-messages.jumping {
+    opacity: 0;
+    transform: translateY(-100px);
+}
+
+.timeline-item.jump-target {
+    animation: highlight-pulse 2s ease-out;
+}
+
+
+
+#+end_src
+
+
+
+
+
+
