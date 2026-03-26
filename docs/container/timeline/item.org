@@ -652,6 +652,48 @@ individual's display name.
 
 ***** TODO We should expose the read by per message and display the avatars (and open an interface on click to show all read and timestamps)
 
+
+***** Reaction Row
+
+#+begin_src clojurescript :tangle ../../../src/container/timeline/item.cljs
+(defn reaction-row [{:keys [reactions my-id members-map active-room event-id]}]
+  [:div.reactions-row
+   (for [[emoji count senders] reactions]
+     ^{:key emoji}
+     (let [hover-text (->> senders
+                           (map (fn [uid]
+                                  (or (:display-name (get members-map uid))
+                                      uid)))
+                           (str/join ", "))]
+       [:span.reaction-pill
+        {:class (when (contains? senders my-id) "active")
+         :title hover-text
+         :on-context-menu (fn [e]
+                            (.preventDefault e)
+                            (.stopPropagation e)
+                            (re-frame/dispatch
+                             [:ui/open-modal :reaction-details
+                              {:room-id active-room
+                               :reactions reactions
+                               :window-props {:style {:max-width "400px" :min-height "300px"}}}]))
+         :on-click (fn [e]
+                     (.preventDefault e)
+                     (.stopPropagation e)
+                     (re-frame/dispatch [:sdk/toggle-reaction active-room event-id emoji]))
+         :style {:cursor "pointer" :user-select "none"}}
+        (if (str/starts-with? emoji "mxc://")
+          [:img.reaction-custom
+           {:src (mxc->url emoji {:width 32 :height 32 :method "crop"})
+            :style {:pointer-events "none"}}]
+          [:span.reaction-emoji
+           {:style {:pointer-events "none"}}
+           emoji])
+        [:span.reaction-count
+         {:style {:pointer-events "none"}}
+         count]]))])
+#+end_src
+
+
 #+begin_src clojurescript :tangle ../../../src/container/timeline/item.cljs
 (defn system-event-view [icon text]
   [:div.timeline-system-event
