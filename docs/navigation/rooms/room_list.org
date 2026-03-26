@@ -789,6 +789,8 @@ and file structures.
  :rooms/select
  (fn [{:keys [db]} [_ room-id opts]]
    (let [current-room-id (:active-room-id db)
+         client          (:client db)
+         old-handle      (get-in db [:room-info-handles current-room-id])
          active-call-id  (get-in db [:call :active-room-id])
          already-loaded? (get-in db [:room-members room-id :data])
          loading?        (get-in db [:room-members room-id :loading?])
@@ -800,7 +802,6 @@ and file structures.
          wipe-call-state? (not is-call-room?)
          swapping-calls? (and active-call-id (not= active-call-id room-id) is-call-room?)
          current-side-panel (get-in db [:ui :side-panel])
-         _ (log/error )
          _ (log/error current-side-panel)
          side-panel-update  (if (and (= current-side-panel :timeline)
                                      (= new-focus :timeline)
@@ -832,7 +833,8 @@ and file structures.
                                    [:container/set-side-panel nil])
                                  (when is-call-room? [:call/init-widget room-id {:join-directly? join-directly?}])])]
          {:db base-db
-          :dispatch-n dispatches})))))
+          :dispatch-n dispatches
+          })))))
 
 #+end_src
 
