@@ -30,6 +30,7 @@
          :avatar                     avatar-url
          ;; TODO Add message preview handling here
          :messagePreview             nil
+         :pinnedEventIds               (oget room-info :pinnedEventIds)
          :activeRoomCallParticipants (oget room-info :activeRoomCallParticipants)
          :showNotificationDecoration (oget notification-state :hasAnyNotificationOrActivity)
          :notificationState          notification-state
