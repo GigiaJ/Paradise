@@ -1,6 +1,14 @@
 {:en
  {:container
-  {:panels
+  {:jump-to "Jump to Message"
+   :search
+   {:loading "Searching..."
+    :no-results "No messages found."
+    :initial "Type to search messages"
+    :placeholder "Search room..."
+    }
+
+   :panels
    {:members "Members"
     :threads "Threads"
     :search  "Search"
