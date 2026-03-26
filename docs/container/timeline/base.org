@@ -199,10 +199,13 @@ export enum DateDividerMode {
               (not loading?)
               (not= status "Paginating")
               (not= status "TimelineStartReached"))
-       (when-let [timeline (get-in db [:timeline-subs room-id :timeline])]
-         (-> (.paginateBackwards timeline 50)
-             (.then #(re-frame/dispatch [:sdk/pagination-complete room-id])))
-         {:db (assoc-in db [:timeline/loading-more? room-id] true)})
+       (if-let [timeline (get-in db [:timeline-subs room-id :timeline])]
+         (do
+           (-> (.paginateBackwards timeline 50 js/undefined)
+               (p/then #(re-frame/dispatch [:sdk/pagination-complete room-id]))
+               (p/catch #(log/error "Back pagination failed:" %)))
+           {:db (assoc-in db [:timeline/loading-more? room-id] true)})
+         {})
        {}))))
 
 (re-frame/reg-event-db
