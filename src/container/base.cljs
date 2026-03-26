@@ -6,6 +6,9 @@
    [container.call.call-view :refer [call-view]]
    [container.timeline.base :refer [timeline]]
    [container.members :refer [member-list]]
+   [container.search :refer [search]]
+   [container.pins :refer [pins]]
+   [utils.helpers :refer [fetch-room-state]]
    [utils.svg :as icons]
    [taoensso.timbre :as log]
    [promesa.core :as p]
@@ -22,34 +25,18 @@
    [:h2 "Thread Context"]
    [:button {:on-click #(re-frame/dispatch [:ui/set-main-focus :timeline])} "Back to Timeline"]])
 
-#_(defn member-list []
-  [:div.member-list-wrapper
-   [:ul.member-items
-    [:li "@alice:matrix.org"]
-    [:li "@bob:matrix.org"]]])
-
 (defn thread-list []
   [:div.thread-list {:style {:padding "10px"}}
    [:h3 "Active Threads"]
    [:div "Thread 1..."]
   [:div "Thread 2..."]])
 
-(defn search []
-  [:div.search
-   [search {:width "48px" :height "48px" :style {:margin-bottom "16px" :opacity 0.5}}]
-   [:div "Search messages in this room"]])
-
-(defn pins []
-  [:div.pin [pins {:width "48px" :height "48px" :style {:margin-bottom "16px" :opacity 0.5}}]
-   [:div "No pinned messages in this room"]])
-
 
 (defn container []
   (let [main-focus    @(re-frame/subscribe [:container/main-focus])
         side-panel    @(re-frame/subscribe [:container/side-panel])
         active-room   @(re-frame/subscribe [:rooms/active-id])
-        tr            @(re-frame/subscribe [:i18n/tr])
-        ]
+        tr            @(re-frame/subscribe [:i18n/tr])]
     [:div.room-layout
      {:style {:display "grid"
               :flex "1"
@@ -99,5 +86,9 @@
                :search   [search]
                :pins     [pins]
                )]])
-           ])
-)
+           ]))
+
+
+
+
+
