@@ -603,7 +603,7 @@ mentioned above. Should be easily sorted, however.
            :data event-array
            :firstItemIndex @!start-index
            :initialTopMostItemIndex @!initial-idx
-           :alignToBottom true
+           :alignToBottom (not focus-mode?)
            :increaseViewportBy 400
            :atBottomThreshold 100
            :atBottomStateChange #(reset! !at-bottom? %)
