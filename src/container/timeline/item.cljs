@@ -8,7 +8,7 @@
             [reagent.core :as r]
             [reagent.dom :as rd]
             [reagent.dom.client :as rdom]
-            [utils.helpers :refer [mxc->url sanitize-custom-html format-divider-date format-time linkify-text]]
+            [utils.helpers :refer [mxc->url sanitize-custom-html format-divider-date format-time linkify-text truncate-name]]
             [utils.global-ui :refer [avatar long-press-props swipe-to-action-wrapper]]
             [container.members :refer [profile-popover-trigger]]
             [input.base :refer [message-input inline-editor]]
@@ -523,6 +523,42 @@
      (when is-edited?
        [:span.timeline-edited-label (tr [:container.timeline.status/edited])])]))
 
+(defn reaction-row [{:keys [reactions my-id members-map active-room event-id]}]
+  [:div.reactions-row
+   (for [[emoji count senders] reactions]
+     ^{:key emoji}
+     (let [hover-text (->> senders
+                           (map (fn [uid]
+                                  (or (:display-name (get members-map uid))
+                                      uid)))
+                           (str/join ", "))]
+       [:span.reaction-pill
+        {:class (when (contains? senders my-id) "active")
+         :title hover-text
+         :on-context-menu (fn [e]
+                            (.preventDefault e)
+                            (.stopPropagation e)
+                            (re-frame/dispatch
+                             [:ui/open-modal :reaction-details
+                              {:room-id active-room
+                               :reactions reactions
+                               :window-props {:style {:max-width "400px" :min-height "300px"}}}]))
+         :on-click (fn [e]
+                     (.preventDefault e)
+                     (.stopPropagation e)
+                     (re-frame/dispatch [:sdk/toggle-reaction active-room event-id emoji]))
+         :style {:cursor "pointer" :user-select "none"}}
+        (if (str/starts-with? emoji "mxc://")
+          [:img.reaction-custom
+           {:src (mxc->url emoji {:width 32 :height 32 :method "crop"})
+            :style {:pointer-events "none"}}]
+          [:span.reaction-emoji
+           {:style {:pointer-events "none"}}
+           emoji])
+        [:span.reaction-count
+         {:style {:pointer-events "none"}}
+         count]]))])
+
 (defn system-event-view [icon text]
   [:div.timeline-system-event
    [:span.system-icon icon]
@@ -536,44 +572,48 @@
 
 (defn event-tile-render [item]
   (let [{:keys [id sender sender-id sender-name sender-avatar content-tag content type reactions read-by ts is-own? merge-with-prev?]} item
-        tr          @(re-frame/subscribe [:i18n/tr])
-        active-room @(re-frame/subscribe [:rooms/active-id])
-        my-profile  @(re-frame/subscribe [:sdk/profile])
-        my-id       (:user-id my-profile)
-        edit-context @(re-frame/subscribe [:input/context active-room])
+        tr               @(re-frame/subscribe [:i18n/tr])
+        active-room      @(re-frame/subscribe [:rooms/active-id])
+        my-profile       @(re-frame/subscribe [:sdk/profile])
+        is-mobile?       @(re-frame/subscribe [:ui/mobile?])
+        my-id            (:user-id my-profile)
+        edit-context     @(re-frame/subscribe [:input/context active-room])
         is-editing-this? (and (= (:mode edit-context) :edit)
                               (= (-> edit-context :target :id) id))
-        custom-tags @(re-frame/subscribe [:room/power-level-tags active-room])
-        members-map @(re-frame/subscribe [:room/members-map active-room])
-        member-data (get members-map sender-id)
-        popover-member {:user-id sender-id
-                        :display-name (or (:display-name member-data) sender-name)
-                        :avatar-url (or (:avatar-url member-data) (mxc->url sender-avatar))
-                        :power-level (or (:power-level member-data) 0)}
-        open-menu-fn (fn [mx my]
-                       (re-frame/dispatch
-                        [:context-menu/open
-                         {:x mx :y my
-                          :items (build-message-actions tr item active-room my-id mx my)}]))]
-    (if (= type :virtual)
-      (case (:tag item)
-        "DateDivider" [date-divider tr (:ts item)]
-        [system-event-view "-" (tr [:container.timeline.status/timeline-separator])])
-      [swipe-to-action-wrapper
+        custom-tags      @(re-frame/subscribe [:room/power-level-tags active-room])
+        members-map      @(re-frame/subscribe [:room/members-map active-room])
+        member-data      (get members-map sender-id)
+        popover-member   {:user-id sender-id
+                          :display-name (or (:display-name member-data) sender-name)
+                          :avatar-url (or (:avatar-url member-data) (mxc->url sender-avatar))
+                          :power-level (or (:power-level member-data) 0)}
+        open-menu-fn     (fn [mx my]
+                           (re-frame/dispatch
+                            [:context-menu/open
+                             {:x mx :y my
+                              :items (build-message-actions tr item active-room my-id mx my)}]))]
 
+    (if (= type :virtual)
+      [:div.timeline-item-virtual-wrapper
+       {:style {:display "block" :width "100%" :min-height "40px"}}
+       (case (:tag item)
+         "DateDivider" [date-divider tr (:ts item)]
+         [system-event-view "-" (tr [:container.timeline.status/timeline-separator])])]
+
+      [swipe-to-action-wrapper
        {:can-edit? is-own?
+        :enabled? is-mobile?
         :on-action (fn [action] (re-frame/dispatch [:input/set-context active-room action item]))
         :wrapper-props (merge (long-press-props open-menu-fn)
-                      {:class (str "timeline-message"
-                                   (if (= content-tag "MsgLike") " is-message" " is-system")
-                                   (when merge-with-prev? " is-merged"))})}
+                              {:class (str "timeline-message"
+                                           (if (= content-tag "MsgLike") " is-message" " is-system")
+                                           (when merge-with-prev? " is-merged"))})}
+
        [:div.timeline-avatar-wrapper
         (when (and (= content-tag "MsgLike") (not merge-with-prev?))
           [profile-popover-trigger popover-member custom-tags active-room nil
-           [avatar {:id sender-id :name
-                    (:display-name popover-member)
-                    :url (:avatar-url popover-member)
-                    :size 32 :status :online :shape :none}]])]
+           [avatar {:id sender-id :name (:display-name popover-member)
+                    :url (:avatar-url popover-member) :size 32 :status :online :shape :none}]])]
 
        [:div.timeline-content-wrapper
         (when (= content-tag "MsgLike")
@@ -587,78 +627,40 @@
             [:<>
              (when-not merge-with-prev?
                [:div.timeline-header
-                [profile-popover-trigger popover-member custom-tags active-room
-                 nil [:span.timeline-sender-name (:display-name popover-member)] ]
+                [profile-popover-trigger popover-member custom-tags active-room nil
+                 [:span.timeline-sender-name (truncate-name (:display-name popover-member) 32)]]
                 [:span.timeline-timestamp (format-time ts)]])
              [:div.timeline-body
               (cond
                 is-editing-this? [inline-editor item active-room]
                 (= tag "Sticker") [render-message-content tr "Sticker" inner in-reply-to reply-msg]
-                (= tag "Redacted")
-                [:span.redacted (tr [:container.timeline.status/redacted])]
-                (= tag "UnableToDecrypt")
-                [:span.decryption-error (tr [:container.timeline.status/decryption-error])]
-                (= tag "Message")
-                (let [{m-tag :tag m-content :content} inner]
-                  [render-message-content tr m-tag m-content in-reply-to reply-msg])
-                :else [:span.unknown (tr [:container.timeline.status/unknown-kind] [tag])
-            (str "Unknown message kind: " tag)])]])
+                (= tag "Redacted") [:span.redacted (tr [:container.timeline.status/redacted])]
+                (= tag "UnableToDecrypt") [:span.decryption-error (tr [:container.timeline.status/decryption-error])]
+                (= tag "Message") (let [{m-tag :tag m-content :content} inner]
+                                    [render-message-content tr m-tag m-content in-reply-to reply-msg])
+                :else [:span.unknown (tr [:container.timeline.status/unknown-kind] [tag]) (str "Unknown message kind: " tag)])]])
 
           (= content-tag "RoomMembership")
-          [system-event-view "->"   (tr [:container.timeline.status/membership] [sender-name])]
+          [system-event-view "->" (tr [:container.timeline.status/membership] [sender-name])]
 
           (= content-tag "ProfileChange")
-          [system-event-view "@"  (tr [:container.timeline.status/profile] [sender-name])]
+          [system-event-view "@" (tr [:container.timeline.status/profile] [sender-name])]
+
           (= content-tag "State")
           [state-event-view item]
 
           :else
           [system-event-view "!" (tr [:container.timeline.status/unknown-event] [content-tag])])
 
-        (when (or (seq reactions) (seq read-by))
-          [:div.timeline-metadata
-           (when (seq reactions)
-             [:div.reactions-row
-              (for [[emoji count senders] reactions]
-                ^{:key emoji}
-                (let [hover-text (->> senders
-                                      (map (fn [uid]
-                                             (or (:display-name (get members-map uid))
-                                                 uid)))
-                                      (str/join ", "))]
-                  [:span.reaction-pill
-                   {:class (when (contains? senders my-id) "active")
-                    :title hover-text
-                    :on-context-menu (fn [e]
-                                       (.preventDefault e)
-                                       (.stopPropagation e)
-                                       (re-frame/dispatch
-                                        [:ui/open-modal :reaction-details
-                                         {:room-id active-room
-                                          :reactions reactions
-                                          :window-props {:style {:max-width "400px" :min-height "300px"}}}]))
-                    :on-click (fn [e]
-                                (.preventDefault e)
-                                (.stopPropagation e)
-                                (re-frame/dispatch [:sdk/toggle-reaction
-                                                    active-room
-                                                    (:event-or-transaction-id item)
-                                                    emoji]))
-                    :style {:cursor "pointer"
-                            :user-select "none"}}
-                   (if (str/starts-with? emoji "mxc://")
-                     [:img.reaction-custom
-                      {:src (mxc->url emoji {:width 32 :height 32 :method "crop"})
-                       :style {:pointer-events "none"}}]
-                     [:span.reaction-emoji
-                      {:style {:pointer-events "none"}}
-                      emoji])
-                   [:span.reaction-count
-                    {:style {:pointer-events "none"}}
-                    count]]))])
-           #_(when (seq read-by)
-               [:div.read-receipts-row
-                [:span.receipt-count (str "✓ " (count read-by))]])])]])))
+        (when (seq reactions)
+          [reaction-row {:reactions reactions
+                         :my-id my-id
+                         :members-map members-map
+                         :active-room active-room
+                         :event-id (:event-or-transaction-id item)}])
+        #_(when (seq read-by)
+            [:div.read-receipts-row
+             [:span.receipt-count (str "✓ " (count read-by))]])]])))
 
 
 (defn event-tile [item]
