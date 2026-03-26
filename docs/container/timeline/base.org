@@ -579,6 +579,7 @@ mentioned above. Should be easily sorted, however.
         (reset! !prev-count cnt)
 
         [:div.timeline-messages
+         {:class (when jumping? "jumping-animation")}
          (when loading?
            [:div.timeline-loading-overlay
             [:div.spinner]])
