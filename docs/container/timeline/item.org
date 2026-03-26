@@ -763,8 +763,8 @@ individual's display name.
             [:<>
              (when-not merge-with-prev?
                [:div.timeline-header
-                [profile-popover-trigger popover-member custom-tags active-room
-                 nil [:span.timeline-sender-name (:display-name popover-member)] ]
+                [profile-popover-trigger popover-member custom-tags active-room nil
+                 [:span.timeline-sender-name (truncate-name (:display-name popover-member) 32)]]
                 [:span.timeline-timestamp (format-time ts)]])
              [:div.timeline-body
               (cond
