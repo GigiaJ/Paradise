@@ -788,50 +788,15 @@ individual's display name.
           :else
           [system-event-view "!" (tr [:container.timeline.status/unknown-event] [content-tag])])
 
-        (when (or (seq reactions) (seq read-by))
-          [:div.timeline-metadata
-           (when (seq reactions)
-             [:div.reactions-row
-              (for [[emoji count senders] reactions]
-                ^{:key emoji}
-                (let [hover-text (->> senders
-                                      (map (fn [uid]
-                                             (or (:display-name (get members-map uid))
-                                                 uid)))
-                                      (str/join ", "))]
-                  [:span.reaction-pill
-                   {:class (when (contains? senders my-id) "active")
-                    :title hover-text
-                    :on-context-menu (fn [e]
-                                       (.preventDefault e)
-                                       (.stopPropagation e)
-                                       (re-frame/dispatch
-                                        [:ui/open-modal :reaction-details
-                                         {:room-id active-room
-                                          :reactions reactions
-                                          :window-props {:style {:max-width "400px" :min-height "300px"}}}]))
-                    :on-click (fn [e]
-                                (.preventDefault e)
-                                (.stopPropagation e)
-                                (re-frame/dispatch [:sdk/toggle-reaction
-                                                    active-room
-                                                    (:event-or-transaction-id item)
-                                                    emoji]))
-                    :style {:cursor "pointer"
-                            :user-select "none"}}
-                   (if (str/starts-with? emoji "mxc://")
-                     [:img.reaction-custom
-                      {:src (mxc->url emoji {:width 32 :height 32 :method "crop"})
-                       :style {:pointer-events "none"}}]
-                     [:span.reaction-emoji
-                      {:style {:pointer-events "none"}}
-                      emoji])
-                   [:span.reaction-count
-                    {:style {:pointer-events "none"}}
-                    count]]))])
-           #_(when (seq read-by)
-               [:div.read-receipts-row
-                [:span.receipt-count (str "✓ " (count read-by))]])])]])))
+        (when (seq reactions)
+          [reaction-row {:reactions reactions
+                         :my-id my-id
+                         :members-map members-map
+                         :active-room active-room
+                         :event-id (:event-or-transaction-id item)}])
+        #_(when (seq read-by)
+            [:div.read-receipts-row
+             [:span.receipt-count (str "✓ " (count read-by))]])]])))
 
 #+end_src
 
