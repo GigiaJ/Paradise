@@ -598,7 +598,7 @@ mentioned above. Should be easily sorted, however.
                ]]))
 
          [:> Virtuoso
-          {:key room-id
+          {:key (str room-id "-" jump-target)
            :ref #(reset! !virtuoso-ref %)
            :data event-array
            :firstItemIndex @!start-index
