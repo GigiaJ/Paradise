@@ -44,6 +44,7 @@
     font-weight: 400;
 }
 
+
 .timeline-empty {
     display: flex;
     align-items: center;
@@ -52,22 +53,47 @@
     color: #6c7086;
 }
 
-.timeline-item {
-    list-style: none;
-    margin-bottom: 4px;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    overflow-anchor: none;
+
+.message-item:hover {
+    background-color: var(--surface-hover, rgba(255, 255, 255, 0.04));
 }
+
+
+.timeline-date-separator {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px 0;
+    width: 100%;
+}
+
+.separator-line {
+    flex: 1;
+    height: 1px;
+    background: var(--border-color);
+}
+
+.separator-text {
+    padding: 0 12px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+}
+
+.timeline-item:last-child {
+    margin-bottom: 0;
+}
+
+.timeline-item:hover {
+    background-color: var(--surface-hover);
+    border-left-color: var(--brand-primary-alpha);
+}
+
 
 .message {
     padding: 2px 16px;
     margin-bottom: 0;
-}
-
-.message:hover {
-    background-color: rgba(0, 0, 0, 0.05);
 }
 
 .sender {
@@ -275,14 +301,6 @@
     margin-top: 8px;
 }
 
-
-.timeline-container {
-    display: flex;
-    flex-direction: column;
-    flex: 1;
-    min-height: 0;
-}
-
 .message-list {
     flex: 1;
     overflow-y: auto;
@@ -294,6 +312,7 @@
     flex: 1;
     height: 100%;
     overflow: hidden;
+    min-height: 0;
 }
 
 .timeline-messages {
@@ -324,6 +343,9 @@
     padding-bottom: 5px;
 }
 
+.timeline-message:hover {
+    background-color: var(--surface-hover, rgba(255, 255, 255, 0.04));
+}
 
 .timeline-row.is-state-event {
     margin: 12px 0;
@@ -336,15 +358,6 @@
 
 .timeline-message.is-merged {
     padding-top: 2px;
-}
-
-.timeline-message:hover {
-    background: var(--cp-bg-hover);
-}
-
-
-.timeline-message:hover {
-    background: var(--bg-hover);
 }
 
 .timeline-message:hover .message-hover-toolbar {
@@ -418,7 +431,6 @@
     color: var(--text-main);
 }
 
-
 .timeline-loading-overlay {
     position: absolute;
     top: 0;
@@ -476,15 +488,6 @@
     content: "↓";
     font-weight: bold;
 }
-
-
-
-
-
-
-
-
-
 
 
 
