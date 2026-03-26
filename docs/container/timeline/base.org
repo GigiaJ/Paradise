@@ -585,10 +585,17 @@ mentioned above. Should be easily sorted, however.
             [:div.spinner]])
 
          (when-not @!at-bottom?
-           [:button.jump-to-bottom
-            {:on-click #(.scrollToIndex @!virtuoso-ref #js {:index (dec (+ @!start-index cnt))
-                                                            :behavior "smooth"})}
-            (tr [:container.timeline/jump-to-bottom])])
+           (let [focus-mode? @(re-frame/subscribe [:room/is-focused? room-id])]
+             [:button.jump-to-bottom
+              {:on-click (fn []
+                           (if focus-mode?
+                             (re-frame/dispatch [:room/jump-to-live-bottom room-id])
+                             (.scrollToIndex @!virtuoso-ref
+                                             #js {:index (dec (+ @!start-index cnt))
+                                                  :behavior "smooth"})))}
+              [:div {:style {:display "flex" :align-items "center" :gap "8px"}}
+               (tr   [:container.timeline/jump-to-bottom])
+               ]]))
 
          [:> Virtuoso
           {:key room-id
