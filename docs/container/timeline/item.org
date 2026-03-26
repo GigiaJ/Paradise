@@ -770,21 +770,18 @@ individual's display name.
               (cond
                 is-editing-this? [inline-editor item active-room]
                 (= tag "Sticker") [render-message-content tr "Sticker" inner in-reply-to reply-msg]
-                (= tag "Redacted")
-                [:span.redacted (tr [:container.timeline.status/redacted])]
-                (= tag "UnableToDecrypt")
-                [:span.decryption-error (tr [:container.timeline.status/decryption-error])]
-                (= tag "Message")
-                (let [{m-tag :tag m-content :content} inner]
-                  [render-message-content tr m-tag m-content in-reply-to reply-msg])
-                :else [:span.unknown (tr [:container.timeline.status/unknown-kind] [tag])
-            (str "Unknown message kind: " tag)])]])
+                (= tag "Redacted") [:span.redacted (tr [:container.timeline.status/redacted])]
+                (= tag "UnableToDecrypt") [:span.decryption-error (tr [:container.timeline.status/decryption-error])]
+                (= tag "Message") (let [{m-tag :tag m-content :content} inner]
+                                    [render-message-content tr m-tag m-content in-reply-to reply-msg])
+                :else [:span.unknown (tr [:container.timeline.status/unknown-kind] [tag]) (str "Unknown message kind: " tag)])]])
 
           (= content-tag "RoomMembership")
-          [system-event-view "->"   (tr [:container.timeline.status/membership] [sender-name])]
+          [system-event-view "->" (tr [:container.timeline.status/membership] [sender-name])]
 
           (= content-tag "ProfileChange")
-          [system-event-view "@"  (tr [:container.timeline.status/profile] [sender-name])]
+          [system-event-view "@" (tr [:container.timeline.status/profile] [sender-name])]
+
           (= content-tag "State")
           [state-event-view item]
 
