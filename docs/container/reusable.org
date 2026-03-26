@@ -15,6 +15,7 @@ so we'll keep them nicely collected here.
             [taoensso.timbre :as log]
             [re-frame.db :as db]
             ["react-virtuoso" :refer [Virtuoso]]
+            [container.timeline.item :refer [event-tile]]
             [promesa.core :as p]
             [reagent.core :as r]
             [reagent.dom.client :as rdom]
