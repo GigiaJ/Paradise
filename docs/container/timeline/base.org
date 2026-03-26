@@ -260,6 +260,26 @@ is an edit)
                  (if curr-is-msg? new-item last-msg)))))))
 
 (re-frame/reg-sub
+ :timeline/sorted-events
+ (fn [db [_ active-room]]
+   (let [raw-events (get-in db [:timeline active-room] [])]
+     (->> raw-events
+          (reduce (fn [acc e]
+                    (let [id-key   (or (:internal-id e) (:id e))
+                          existing (get acc id-key)]
+                      (if (and existing
+                               (not (:is-edited? e))
+                               (<= (:ts e) (:ts existing)))
+                        acc
+                        (assoc acc id-key e))))
+                  {})
+          (vals)
+          (sort-by (fn [e]
+                     [(:ts e)
+                      (if (= (:type e) :virtual) 0 1)]))))))
+
+
+(re-frame/reg-sub
  :timeline/current-events
  (fn [db _]
    (let [active-room   (:active-room-id db)
