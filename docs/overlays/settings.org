@@ -628,7 +628,7 @@ You want to ensure the language options are easy to find for the user.
   color: var(--text-muted);
 }
 
-.language-item [icons/check-circle-green] {
+.language-item {
   animation: scaleIn 0.2s ease-out;
 }
 
