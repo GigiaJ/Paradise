@@ -255,8 +255,6 @@
 (defn ^:export init []
   (re-frame/dispatch-sync [:initialize-db])
   (-> (load-config)
-
-
       (p/then (fn [config]
                 (re-frame/dispatch-sync [:app/config-loaded config])
                 (log/info "Config loaded:" config)
