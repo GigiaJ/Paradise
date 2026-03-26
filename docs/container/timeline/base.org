@@ -620,8 +620,11 @@ mentioned above. Should be easily sorted, however.
            :computeItemKey (fn [_ item] (:id item))
            :itemContent (fn [_ item]
                           (r/as-element
-                           [:li.timeline-item {:key (:id item)}
+                           [:li.timeline-item
+                            {:key (:id item)
+                             :class (when (= (:id item) jump-target) "is-jump-target")}
                             [event-tile item]]))}] ]))))
+
 #+end_src
 
 
