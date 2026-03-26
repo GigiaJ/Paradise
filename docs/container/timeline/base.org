@@ -576,73 +576,97 @@ mentioned above. Should be easily sorted, however.
         !at-bottom?   (r/atom true)
         !virtuoso-ref (r/atom nil)]
     (fn [tr events room-id]
-      (let [event-array   (to-array events)
-            cnt           (count event-array)
-            first-id      (some-> (aget event-array 0) :id)
-            loading?      @(re-frame/subscribe [:timeline/loading-more? room-id])
-            jump-target   @(re-frame/subscribe [:timeline/jump-target-id room-id])
-            focus-mode?   @(re-frame/subscribe [:room/is-focused? room-id])]
+      (let [event-array (to-array events)
+            cnt         (count event-array)
+            first-id    (some-> (aget event-array 0) :id)
+            loading?    @(re-frame/subscribe [:timeline/loading-more? room-id])
+            jump-target @(re-frame/subscribe [:timeline/jump-target-id room-id])
+            focus-mode? @(re-frame/subscribe [:room/is-focused? room-id])
 
-        (when (and (nil? @!initial-idx) (pos? cnt))
-          (if-let [target-id jump-target]
-            (let [idx (.findIndex event-array #(= (:id %) target-id))]
-              (if (not= idx -1)
-                (reset! !initial-idx (+ @!start-index idx))
-                (reset! !initial-idx (dec (+ @!start-index cnt)))))
-            (reset! !initial-idx (dec (+ @!start-index cnt)))))
+            {:keys [start-index prev-first-id prev-count]} @math-state
 
-        (when (and @!prev-first-id (not= first-id @!prev-first-id) (> cnt @!prev-count))
-          (swap! !start-index - (- cnt @!prev-count)))
+            prepended?    (and prev-first-id
+                               (not= first-id prev-first-id)
+                               (> cnt prev-count))
+            diff          (if prepended? (- cnt prev-count) 0)
+            current-start (if prepended? (- start-index diff) start-index)
 
-        (reset! !prev-first-id first-id)
-        (reset! !prev-count cnt)
+            target-idx    (if jump-target
+                            (let [idx (.findIndex event-array #(= (:id %) jump-target))]
+                              (if (not= idx -1)
+                                (+ current-start idx)
+                                (dec (+ current-start cnt))))
+                            (dec (+ current-start cnt)))]
+
+        (vreset! math-state {:start-index current-start
+                             :prev-first-id first-id
+                             :prev-count cnt})
 
         [:div.timeline-messages
-         {:class (when jumping? "jumping-animation")}
+         {:class (when jump-target "jumping-animation")
+          :style {:display "flex" :flex-direction "column" :flex 1 :height "100%"}}
+
          (when loading?
-           [:div.timeline-loading-overlay
-            [:div.spinner]])
+           [:div.timeline-loading-overlay [:div.spinner]])
 
          (when-not @!at-bottom?
-           (let [focus-mode? @(re-frame/subscribe [:room/is-focused? room-id])]
-             [:button.jump-to-bottom
-              {:on-click (fn []
-                           (if focus-mode?
-                             (re-frame/dispatch [:room/jump-to-live-bottom room-id])
-                             (.scrollToIndex @!virtuoso-ref
-                                             #js {:index (dec (+ @!start-index cnt))
-                                                  :behavior "smooth"})))}
-              [:div {:style {:display "flex" :align-items "center" :gap "8px"}}
-               (tr   [:container.timeline/jump-to-bottom])
-               ]]))
+           [:button.jump-to-bottom
+            {:on-click (fn []
+                         (if focus-mode?
+                           (re-frame/dispatch [:room/jump-to-live-bottom room-id])
+                           (.scrollToIndex @!virtuoso-ref
+                                           #js {:index (dec (+ current-start cnt))
+                                                :behavior "auto"})))}
+            [:div {:style {:display "flex" :align-items "center" :gap "8px"}}
+             (tr [:container.timeline/jump-to-bottom])]])
 
-         [:> Virtuoso
-          {:key (str room-id "-" jump-target)
-           :ref #(reset! !virtuoso-ref %)
-           :data event-array
-           :firstItemIndex @!start-index
-           :initialTopMostItemIndex @!initial-idx
-           :alignToBottom (not focus-mode?)
-           :increaseViewportBy 400
-           :atBottomThreshold 100
-           :atBottomStateChange #(reset! !at-bottom? %)
-           :followOutput (fn [at-bottom] (if (and at-bottom (not focus-mode?)) "auto" false))
-           :startReached (fn []
-                (let [focus-mode? @(re-frame/subscribe [:room/is-focused? room-id])]
-                  (if focus-mode?
-                    (js/setTimeout #(re-frame/dispatch [:sdk/back-paginate room-id]) 500)
-                    (re-frame/dispatch [:sdk/back-paginate room-id]))))
+         (if (zero? cnt)
+           [:div.timeline-empty {:style {:padding "20px" :text-align "center"}} "Loading..."]
 
-           :endReached (fn []
-                         (when focus-mode?
-                           (re-frame/dispatch [:sdk/forward-paginate room-id])))
-           :computeItemKey (fn [_ item] (:id item))
-           :itemContent (fn [_ item]
-                          (r/as-element
-                           [:li.timeline-item
-                            {:key (:id item)
-                             :class (when (= (:id item) jump-target) "is-jump-target")}
-                            [event-tile item]]))}] ]))))
+           [:> Virtuoso
+            {:key (str room-id "-" jump-target)
+             :ref #(reset! !virtuoso-ref %)
+             :style {:height "100%" :flex 1}
+             :data event-array
+             :firstItemIndex current-start
+             :initialTopMostItemIndex target-idx
+             :alignToBottom (not focus-mode?)
+             :increaseViewportBy #js {:top 400 :bottom 400}
+             :atBottomThreshold 100
+             :atBottomStateChange #(reset! !at-bottom? %)
+             :followOutput (fn [is-at-bottom]
+                             (if (and is-at-bottom (not focus-mode?)) "auto" false))
+
+             :startReached (fn []
+                             (when-not loading?
+                               (re-frame/dispatch [:sdk/back-paginate room-id])))
+             :totalListHeightChanged (fn [_]
+                                       (when (and @!at-bottom? (not focus-mode?) @!virtuoso-ref)
+                                         (.scrollToIndex @!virtuoso-ref
+                                                         #js {:index (dec (+ current-start cnt))
+                                                              :align "end"
+                                                              :behavior "auto"})))
+
+             ;; was brute forcing scroll for testing
+            #_ :totalListHeightChanged
+             #_(fn [_]
+               (when (and @!at-bottom? (not focus-mode?) @!virtuoso-ref)
+                 (js/requestAnimationFrame
+                  (fn []
+                    (.scrollTo @!virtuoso-ref
+                               #js {:top 999999999
+                                    :behavior "auto"})))))
+
+             :endReached (fn []
+                           (when focus-mode?
+                             (re-frame/dispatch [:sdk/forward-paginate room-id])))
+             :computeItemKey (fn [_ item] (:id item))
+             :itemContent (fn [_ item]
+                            (r/as-element
+                             ^{:key (:id item)}
+                             [:li.timeline-item
+                              {:class (when (= (:id item) jump-target) "is-jump-target")}
+                              [event-tile item]]))}] )]))))
 
 #+end_src
 
