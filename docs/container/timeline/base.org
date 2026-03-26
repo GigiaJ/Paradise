@@ -607,7 +607,7 @@ mentioned above. Should be easily sorted, however.
            :increaseViewportBy 400
            :atBottomThreshold 100
            :atBottomStateChange #(reset! !at-bottom? %)
-           :followOutput (fn [at-bottom] (if at-bottom "auto" false))
+           :followOutput (fn [at-bottom] (if (and at-bottom (not focus-mode?)) "auto" false))
            :startReached (fn []
                            (log/debug "Start reached for" room-id)
                            (re-frame/dispatch [:sdk/back-paginate room-id]))
