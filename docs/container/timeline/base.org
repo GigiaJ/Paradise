@@ -189,38 +189,6 @@ export enum DateDividerMode {
               :tl-handle     tl-handle
               :pag-handle    pag-handle
               :typing-handle typing-handle})))
-
-(re-frame/reg-event-fx
- :sdk/back-paginate
- (fn [{:keys [db]} [_ room-id]]
-   (let [loading? (get-in db [:timeline/loading-more? room-id])
-         status   (get-in db [:timeline-pagination room-id])
-         status-tag (.-tag status)
-         start-reached? (some-> status (.-inner) (.-hitTimeLineStart))
-         ]
-     (if (and room-id
-              (not loading?)
-              (not= status "Paginating")
-              status-tag)
-       (if-let [timeline (get-in db [:timeline-subs room-id :timeline])]
-         (do
-           (log/debug "Paginating backwards")
-           (-> (.paginateBackwards timeline 100 js/undefined)
-               (p/then #(re-frame/dispatch [:sdk/pagination-complete room-id]))
-               (p/catch #(log/error "Back pagination failed:" %)))
-           {:db (assoc-in db [:timeline/loading-more? room-id] true)})
-         {})
-       {}))))
-
-
-(re-frame/reg-event-db
- :sdk/pagination-complete
- (fn [db [_ room-id]]
-   (let [timeline-path [:timeline-pagination room-id]
-         ]
-     (-> db
-         (assoc-in [:timeline/loading-more? room-id] false)
-         ))))
 #+end_src
 
 
