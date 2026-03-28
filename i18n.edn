@@ -5,8 +5,7 @@
    {:loading "Searching..."
     :no-results "No messages found."
     :initial "Type to search messages"
-    :placeholder "Search room..."
-    }
+    :placeholder "Search room..."}
 
    :panels
    {:members "Members"
@@ -25,6 +24,8 @@
      :source    "View Event"
      :delete    "Delete"
      :more      "More"}
+    :loading "Loading..."
+    :return-to-live "Return to Live"
     :jump-to-bottom "Jump to Bottom"
     :status
     {:redacted "This message was deleted."
