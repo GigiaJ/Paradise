@@ -75,33 +75,76 @@ each of these later.
 #+begin_src clojurescript :tangle ../../../src/container/timeline/base.cljs
 
 (re-frame/reg-sub
- :timeline/event-by-id
- (fn [[_ room-id _]]
+ :timeline/raw-events
+ (fn [db [_ active-room]]
+   (get-in db [:timeline active-room] [])))
+
+(re-frame/reg-sub
+ :timeline/sorted-events
+ (fn [[_ active-room]]
+   (re-frame/subscribe [:timeline/raw-events active-room]))
+ (fn [raw-events _]
+   (->> raw-events
+        (reduce (fn [acc e]
+                  (let [id-key   (or (:internal-id e) (:id e))
+                        existing (get acc id-key)]
+                    (if (and existing
+                             (not (:is-edited? e))
+                             (<= (:ts e) (:ts existing)))
+                      acc
+                      (assoc acc id-key e))))
+                {})
+        (vals)
+        (sort-by (fn [e]
+                   [(:ts e)
+                    (if (= (:type e) :virtual) 0 1)])))))
+
+
+(defn enrich-timeline-items [items]
+  (let [clean-items (remove #(and (= (:type %) :virtual)
+                                  (= (:tag %) "ReadMarker"))
+                            items)]
+    (loop [remaining clean-items
+           processed []
+           last-msg  nil]
+      (if (empty? remaining)
+        processed
+        (let [curr         (first remaining)
+              curr-is-msg? (= (:content-tag curr) "MsgLike")
+              is-virtual?  (= (:type curr) :virtual)
+              stable-id    (or (when is-virtual?
+                                 (let [next-msg (first (rest remaining))]
+                                   (if next-msg
+                                     (str "div-for-" (:id next-msg))
+                                     (str "virtual-" (:tag curr) "-" (:ts curr)))))
+                               (:id curr)
+                               (:internal-id curr))
+              can-merge?   (and curr-is-msg?
+                                last-msg
+                                (= (:sender-id curr) (:sender-id last-msg))
+                                (< (- (:ts curr) (:ts last-msg)) 300000))
+              new-item     (assoc curr
+                                  :id stable-id
+                                  :merge-with-prev? can-merge?)]
+          (recur (rest remaining)
+                 (conj processed new-item)
+                 (if curr-is-msg? new-item last-msg)))))))
+
+(re-frame/reg-sub
+ :timeline/current-events
+ (fn [[_ active-room]]
+   (re-frame/subscribe [:timeline/sorted-events active-room]))
+ (fn [sorted-events]
+   (enrich-timeline-items sorted-events)))
+
+(re-frame/reg-sub
+ :timeline/events-map
+ (fn [[_ room-id]]
    (re-frame/subscribe [:timeline/current-events room-id]))
- (fn [events [_ _ target-id]]
-   (first (filter #(= (:id %) target-id) events))))
+ (fn [events _]
+   (into {} (map (juxt :id identity) events))))
 
-(re-frame/reg-event-db
- :sdk/update-timeline
- (fn [db [_ room-id events]]
-   (assoc-in db [:timeline room-id] events)))
 
-(re-frame/reg-event-fx
- :sdk/cleanup-timeline
- (fn [{:keys [db]} [_ room-id]]
-   (when-let [subs (get-in db [:timeline-subs room-id])]
-     (doseq [handle-key [:tl-handle :pag-handle :typing-handle]]
-       (when-let [handle (get subs handle-key)]
-         (try
-           (.cancel handle)
-           (catch :default e
-             (log/warn "Failed to cancel handle:" handle-key e))))))
-   {:db (update db :timeline-subs dissoc room-id)}))
-
-(re-frame/reg-event-db
- :sdk/update-pagination-status
- (fn [db [_ room-id status]]
-   (assoc-in db [:timeline-pagination room-id] status)))
 #+end_src
 
 
