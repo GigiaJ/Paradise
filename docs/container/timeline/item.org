@@ -405,14 +405,18 @@ read receipts. This prevents any sort of spamming to the home server.
 (defonce visibility-observer
   (delay
     (js/IntersectionObserver.
-     (fn [entries]
+     (fn [entries observer]
        (doseq [entry entries]
          (when (.-isIntersecting entry)
-           (let [event-id (.getAttribute (.-target entry) "data-event-id")]
+           (let [target   (.-target entry)
+                 event-id (.getAttribute target "data-event-id")]
              (when event-id
-               (re-frame/dispatch [:msg/mark-visible event-id]))))))
+               (.unobserve observer target)
+               (re-frame/dispatch [:msg/mark-visible event-id])
+               )))))
      #js {:threshold 0.5})))
 #+end_src
+
 
 
 
