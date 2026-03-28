@@ -249,13 +249,6 @@ is an edit)
 ***** TODO Fix this files organization... The revisions led to me moving stuff.. a bunch
 
 (re-frame/reg-sub
- :timeline/current-events
- (fn [[_ active-room]]
-   (re-frame/subscribe [:timeline/sorted-events active-room]))
- (fn [sorted-events]
-   (enrich-timeline-items sorted-events)))
-
-(re-frame/reg-sub
  :timeline/latest-readers
  (fn [_ _]
    [(re-frame/subscribe [:timeline/current-events])
