@@ -718,6 +718,9 @@ individual's display name.
    [:span.system-icon icon]
    [:span.system-text text]])
 
+
+
+
 (defn date-divider [tr ts]
   [:div.timeline-date-separator
    [:div.separator-line]
@@ -757,7 +760,7 @@ individual's display name.
       [swipe-to-action-wrapper
        {:can-edit? is-own?
         :enabled? is-mobile?
-        :on-action (fn [action] (re-frame/dispatch [:input/set-context active-room action item]))
+         :on-action (fn [action] (re-frame/dispatch [:input/set-context active-room action item]))
         :wrapper-props (merge (long-press-props open-menu-fn)
                               {:class (str "timeline-message"
                                            (if (= content-tag "MsgLike") " is-message" " is-system")
@@ -777,7 +780,7 @@ individual's display name.
           (= content-tag "MsgLike")
           (let [{:keys [tag inner in-reply-to]} content
                 reply-id  (:event-id in-reply-to)
-                reply-msg (when reply-id @(re-frame/subscribe [:timeline/event-by-id active-room reply-id]))]
+                reply-msg (when reply-id @(re-frame/subscribe [:timeline/events-map active-room reply-id]))]
             [:<>
              (when-not merge-with-prev?
                [:div.timeline-header
@@ -801,10 +804,13 @@ individual's display name.
           [system-event-view "@" (tr [:container.timeline.status/profile] [sender-name])]
 
           (= content-tag "State")
-          [state-event-view item]
+                    [state-event-view item]
 
-          :else
-          [system-event-view "!" (tr [:container.timeline.status/unknown-event] [content-tag])])
+           :else
+          [system-event-view "!" (tr [:container.timeline.status/unknown-event] [content-tag])]
+
+          )
+
 
         (when (seq reactions)
           [reaction-row {:reactions reactions
@@ -814,7 +820,13 @@ individual's display name.
                          :event-id (:event-or-transaction-id item)}])
         #_(when (seq read-by)
             [:div.read-receipts-row
-             [:span.receipt-count (str "✓ " (count read-by))]])]])))
+             [:span.receipt-count (str "✓ " (count read-by))]])]
+
+       ]
+      )
+
+    )
+  )
 
 #+end_src
 
@@ -823,26 +835,6 @@ individual's display name.
 
 #+begin_src clojurescript :tangle ../../../src/container/timeline/item.cljs
 (defn event-tile [item]
-  (r/with-let [node-ref (r/atom nil)
-               observe-node (fn [node]
-                              (when (and node (not= (:type item) :virtual))
-                                (.observe @visibility-observer node)))
-               unobserve-node (fn [node]
-                                (when (and node (not= (:type item) :virtual))
-                                  (.unobserve @visibility-observer node)))]
-    (let [rendered-item [event-tile-render item]
-          ]
-      [:div {:ref (fn [el]
-                    (when el
-                      (reset! node-ref el)
-                      (observe-node el)))
-             :data-event-id (:id item)
-             }
-       rendered-item])
-    (finally
-      (when-let [node @node-ref]
-        (unobserve-node node)))))
-
 #+end_src
 
 
