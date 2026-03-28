@@ -841,12 +841,9 @@ received an update.
 (defn timeline [& {:keys [compact? hide-header?]}]
   (let [active-id    @(re-frame/subscribe [:rooms/active-id])
         room-meta    @(re-frame/subscribe [:rooms/active-metadata])
-        events       @(re-frame/subscribe [:timeline/current-events active-id])
-        tr           @(re-frame/subscribe [:i18n/tr])
-        display-name (when active-id (or (when room-meta (.-name room-meta)) active-id))
-       ]
+        display-name (when active-id (or (when room-meta (.-name room-meta)) active-id))]
     [:div.timeline-container
-       (when-not hide-header?
+     (when-not hide-header?
        [room-header {:display-name display-name
                      :compact?     compact?
                      :active-id    active-id}])
@@ -854,12 +851,9 @@ received an update.
      (if-not active-id
        [:div.timeline-empty "Select a room to start chatting."]
        [:<>
-        [virtualized-timeline tr events active-id]
+        [virtualized-timeline active-id]
         [message-input]
-        [status-indicator active-id]
-        ])]))
-
-
+        [status-indicator active-id]])]))
 #+end_src
 
 
