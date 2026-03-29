@@ -16,6 +16,7 @@
         "ubrn:clean": "rm -Rf cpp/ src/generated/ src/index.web.ts*"
     },
     "dependencies": {
+        "@capacitor-community/electron": "^5.0.1",
         "@capacitor/android": "^8.3.0",
         "@capacitor/cli": "^8.3.0",
         "@capacitor/core": "^8.3.0",
