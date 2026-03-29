@@ -1,3 +1,16 @@
+
+@keyframes sun-breathe {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.05); }
+}
+
+.animate-sun-pulse {
+      transition: transform 0.3s ease-in-out;
+      transform-origin: center;
+      transform-box: fill-box;
+      cursor: pointer;
+  }
+
 @keyframes wiggle {
       0%, 100% { transform: rotate(0deg); }
       25% { transform: rotate(10deg); }
