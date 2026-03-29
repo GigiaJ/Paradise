@@ -23,3 +23,8 @@
     height: 100%;
 }
 
+
+
+  .home-icon-container:hover .animate-sun-pulse {
+      animation: sun-breathe 2s ease-in-out infinite;
+  }
