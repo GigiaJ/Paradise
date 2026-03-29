@@ -297,7 +297,7 @@
        {:class (when (nil? active-id) "active")
         :on-click #(re-frame/dispatch [:space/select nil])
         :title (tr [:navigation.spaces.bar/home])}
-       [:div.home-icon-container [icons/home]]]
+       [:div.home-icon-container [icons/sun {:animate :sun-pulse :size "32px"}]]]
       (for [dm active-dms]
         ^{:key (:id dm)}
         [space-icon-item dm active-id])]
