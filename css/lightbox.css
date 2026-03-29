@@ -1,7 +1,7 @@
 .lightbox-close-btn {
     position: absolute;
-    top: 20px;
     right: 20px;
+    top: env(safe-area-inset-top, 0px);
     background: rgba(0, 0, 0, 0.5);
     color: white;
     border-radius: 50%;
@@ -24,17 +24,17 @@
 .lightbox-actions {
     z-index: 10;
     position: absolute;
-    bottom: 20px;
+    bottom: env(safe-area-inset-bottom, 0px);
     display: flex;
     gap: 12px;
 }
 
 .lightbox-interaction-layer {
     position: absolute;
-    top: 0;
     left: 0;
     right: 0;
-    bottom: 0;
+    top: env(safe-area-inset-top, 0px);
+    bottom: env(safe-area-inset-bottom, 0px);
     overflow: hidden;
     display: flex;
     align-items: center;
