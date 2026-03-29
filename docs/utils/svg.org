@@ -34,19 +34,24 @@ Since we have intent to provide animated SVGs for our icons... we'll
 go ahead and plan for that by providing a class we can hook to for
 the CSS.
 #+begin_src clojurescript :tangle ../../src/utils/svg.cljs
-(defn- icon-base [{:keys [animate] :as props} & children]
-  (into
-   [:svg (merge {:viewBox "0 0 24 24"
-                 :width "16px"
-                 :height "16px"
-                 :fill "none"
-                 :stroke "currentColor"
-                 :stroke-width "2"
-                 :stroke-linecap "round"
-                 :stroke-linejoin "round"
-                 :class (when animate (str "animate-" (name animate)))}
-                (dissoc props :animate))]
-   children))
+(defn- icon-base [{:keys [animate viewBox size] :as props} & children]
+  (let [final-view-box (or viewBox "0 0 24 24")
+        final-size (or size "16px")]
+    (into
+     [:svg (merge {:viewBox final-view-box
+                   :width final-size
+                   :height final-size
+                   :fill "none"
+                   :stroke "currentColor"
+                   :stroke-width "2"
+                   :stroke-linecap "round"
+                   :stroke-linejoin "round"
+                   :class (when animate (str "animate-" (name animate)))}
+                  (dissoc props :animate :viewBox :size))]
+     children)))
+#+end_src
+
+
 #+end_src
 
 
