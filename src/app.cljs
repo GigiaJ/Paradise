@@ -188,7 +188,7 @@
                     :discord "cordlike.css"
                     :matrix  "matrix.css"
                     :retro   "retro.css"
-                    "index.css")]
+                    "app.css")]
      {:db (assoc db :ui/current-theme theme-name)
       :ui/hotswap-css (str "css/" filename)})))
 
